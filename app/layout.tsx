@@ -1,0 +1,38 @@
+import type { Metadata } from "next";
+import { Bebas_Neue, DM_Mono, DM_Sans } from "next/font/google";
+import "./globals.css";
+
+const bebasNeue = Bebas_Neue({
+  variable: "--font-bebas",
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  weight: ["400", "500", "600"],
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const dmMono = DM_Mono({
+  variable: "--font-dm-mono",
+  weight: ["400", "500"],
+  subsets: ["latin"],
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "Stickê - Figurinhas para empreendedoras",
+  description:
+    "Packs de figurinhas PNG com fundo transparente, prontas para usar no Canva, Instagram e WhatsApp.",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="pt-BR" className={`${bebasNeue.variable} ${dmSans.variable} ${dmMono.variable}`}>
+      <body>{children}</body>
+    </html>
+  );
+}
