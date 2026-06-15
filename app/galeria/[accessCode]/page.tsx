@@ -139,10 +139,10 @@ export default function GalleryPage() {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[var(--st-creme-border)] bg-white">
-        <div className="mx-auto flex h-20 max-w-3xl items-center justify-between px-4">
+        <div className="mx-auto flex h-28 max-w-3xl items-center justify-between px-4">
           <Link href="/" aria-label="Stickê - Página inicial">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.png" alt="Stickê" className="h-14 w-auto object-contain" />
+            <img src="/brand/logo.png" alt="Stickê" className="h-[90px] w-auto object-contain" />
           </Link>
           <span className="font-bebas text-xl">{data.pack.name}</span>
         </div>

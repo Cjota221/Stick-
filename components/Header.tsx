@@ -3,13 +3,13 @@ import Link from "next/link";
 export default function Header() {
   return (
     <header className="relative z-30 border-b border-[var(--st-creme-border)] bg-[rgba(247,244,232,.92)] backdrop-blur-md">
-      <div className="mx-auto flex h-24 max-w-[1100px] items-center justify-between px-6">
+      <div className="mx-auto flex h-32 max-w-[1100px] items-center justify-between px-6">
         <Link href="/" aria-label="Stickê - Página inicial">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/logo.png"
             alt="Stickê"
-            className="h-16 w-auto object-contain sm:h-18"
+            className="h-[102px] w-auto object-contain sm:h-[115px]"
           />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-medium text-[var(--st-ink-mid)] sm:gap-6">
