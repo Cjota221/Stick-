@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import PixBlock from "@/components/PixBlock";
 import { STICKE_ACCESS_PRICE } from "@/lib/product";
 
+type CheckoutStatus = "pending" | "approved" | "rejected" | "cancelled";
+
 type CheckoutResult = {
-  status: "pending" | "approved" | "rejected" | "cancelled";
+  status: CheckoutStatus;
   purchase_id?: string;
   payment_id?: string;
   qr_code?: string;
@@ -17,10 +19,7 @@ type CheckoutResult = {
 type TokenizeResult = {
   token: string;
   paymentMethodId: string;
-  cardLast4?: string;
 };
-
-const LAST_PAYMENT_STORAGE_KEY = "sticke:lastPaymentId";
 
 type PaymentMode = "pix" | "card";
 
@@ -32,6 +31,8 @@ type CardForm = {
   securityCode: string;
   cpf: string;
 };
+
+const LAST_PAYMENT_STORAGE_KEY = "sticke:lastPaymentId";
 
 const emptyCardForm: CardForm = {
   cardNumber: "",
@@ -53,20 +54,20 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [statusMessage, setStatusMessage] = useState("Escolha Pix ou cartão para continuar.");
-  const [publicKeyMissing] = useState(!process.env.NEXT_PUBLIC_MP_PUBLIC_KEY);
+  const [message, setMessage] = useState("Escolha Pix ou cartao para continuar.");
 
   useEffect(() => {
     const savedPaymentId = window.localStorage.getItem(LAST_PAYMENT_STORAGE_KEY);
     if (savedPaymentId) {
       setResult({ status: "pending", payment_id: savedPaymentId });
-      setStatusMessage("Encontramos um pagamento anterior e estamos verificando o status.");
+      setMessage("Encontramos um pagamento anterior e estamos verificando o status.");
     }
   }, []);
 
   useEffect(() => {
-    const paymentId = result?.payment_id || "";
-    if (!paymentId || result?.status !== "pending") return;
+    const paymentId = result?.payment_id ?? "";
+    const status = result?.status;
+    if (!paymentId || status !== "pending") return;
 
     let cancelled = false;
 
@@ -84,13 +85,13 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
       if (response.status === 403) {
         setError(payload.error || "Este pagamento nao pertence a esta conta.");
-        setStatusMessage("Este pagamento nao pertence a esta conta.");
+        setMessage("Este pagamento nao pertence a esta conta.");
         return;
       }
 
       if (payload.status === "approved") {
         window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
-        setStatusMessage("Pagamento aprovado. Entrando na galeria...");
+        setMessage("Pagamento aprovado. Entrando na galeria...");
         router.replace("/galeria");
         router.refresh();
         return;
@@ -98,7 +99,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
       if (payload.status === "rejected" || payload.status === "cancelled") {
         setError("O pagamento foi recusado ou cancelado.");
-        setStatusMessage("Pagamento recusado ou cancelado.");
+        setMessage("Pagamento recusado ou cancelado.");
       }
     }
 
@@ -136,7 +137,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   async function submitPix() {
     setError("");
     setLoading(true);
-    setStatusMessage("Gerando o PIX...");
+    setMessage("Gerando o PIX...");
 
     try {
       const payment = await createPayment({
@@ -154,10 +155,10 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         return;
       }
 
-      setStatusMessage("PIX gerado. Agora e so pagar e aguardarmos a confirmacao.");
+      setMessage("PIX gerado. Agora e so pagar e aguardarmos a confirmacao.");
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Nao foi possivel gerar o PIX.");
-      setStatusMessage("Nao foi possivel gerar o PIX.");
+      setMessage("Nao foi possivel gerar o PIX.");
     } finally {
       setLoading(false);
     }
@@ -166,7 +167,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   async function submitCard() {
     setError("");
     setLoading(true);
-    setStatusMessage("Tokenizando o cartao...");
+    setMessage("Tokenizando o cartao...");
 
     try {
       const tokenResponse = await fetch("/api/checkout/tokenizar-cartao", {
@@ -187,7 +188,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         throw new Error(tokenPayload.error || "Nao foi possivel tokenizar o cartao.");
       }
 
-      setStatusMessage("Enviando pagamento para o Mercado Pago...");
+      setMessage("Enviando pagamento para o Mercado Pago...");
       const payment = await createPayment({
         paymentType: "credit_card",
         paymentMethodId: tokenPayload.paymentMethodId,
@@ -201,23 +202,25 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
       if (payment.payment_id) {
         window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payment.payment_id);
       }
+
       if (payment.redirect_url) {
-        setStatusMessage("Abrindo a autenticacao do cartao...");
+        setMessage("Abrindo a autenticacao do cartao...");
         window.location.assign(payment.redirect_url);
         return;
       }
+
       if (payment.status === "approved") {
         window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
-        setStatusMessage("Pagamento aprovado. Entrando na galeria...");
+        setMessage("Pagamento aprovado. Entrando na galeria...");
         router.replace("/galeria");
         router.refresh();
         return;
       }
 
-      setStatusMessage("Pagamento enviado. Estamos aguardando a confirmacao.");
+      setMessage("Pagamento enviado. Estamos aguardando a confirmacao.");
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Nao foi possivel processar o cartao.");
-      setStatusMessage("Nao foi possivel processar o cartao.");
+      setMessage("Nao foi possivel processar o cartao.");
     } finally {
       setLoading(false);
     }
@@ -234,29 +237,23 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
   return (
     <div>
-      {publicKeyMissing && (
-        <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
-          Configure NEXT_PUBLIC_MP_PUBLIC_KEY para habilitar o checkout.
-        </p>
-      )}
-
-      {(error || statusMessage) && (
+      {error || message ? (
         <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-[var(--st-creme)] p-4 text-sm text-[var(--st-ink-mid)]">
           {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-          <p className="mt-2 font-semibold text-[var(--st-ink-dark)]">{statusMessage}</p>
-          {loading && <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p>}
-          {result?.payment_id && (
+          <p className="mt-2 font-semibold text-[var(--st-ink-dark)]">{message}</p>
+          {loading ? <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p> : null}
+          {result?.payment_id ? (
             <p className="mt-1 text-xs">
               <strong>Pagamento:</strong> {result.payment_id}
             </p>
-          )}
-          {result?.purchase_id && (
+          ) : null}
+          {result?.purchase_id ? (
             <p className="mt-1 text-xs">
               <strong>Compra:</strong> {result.purchase_id}
             </p>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--st-creme)] p-1">
@@ -276,30 +273,30 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
             }`}
             onClick={() => setMode("card")}
           >
-            Cartão
+            Cartao
           </button>
         </div>
 
         <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
           <p className="font-semibold text-[var(--st-ink-dark)]">Resumo do acesso</p>
-          <p className="mt-1">Acesso vitalício Stickê</p>
+          <p className="mt-1">Acesso vitalicio Sticke</p>
           <p className="font-mono-st mt-2 text-2xl font-medium text-[var(--st-magenta)]">
             R$ {STICKE_ACCESS_PRICE.toFixed(2).replace(".", ",")}
           </p>
           <p className="mt-1 text-xs">
             Entrar com <strong>{email}</strong>
           </p>
-          {name && (
+          {name ? (
             <p className="mt-1 text-xs">
               Nome da conta: <strong>{name}</strong>
             </p>
-          )}
+          ) : null}
         </div>
 
         {mode === "card" ? (
           <div className="space-y-3">
             <label className="block text-sm font-medium">
-              Nome no cartão
+              Nome no cartao
               <input
                 className="st-input mt-2"
                 value={card.cardholderName}
@@ -309,7 +306,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
               />
             </label>
             <label className="block text-sm font-medium">
-              Número do cartão
+              Numero do cartao
               <input
                 className="st-input mt-2"
                 inputMode="numeric"
@@ -323,7 +320,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block text-sm font-medium">
-                Mês
+                Mes
                 <input
                   className="st-input mt-2"
                   inputMode="numeric"
@@ -377,19 +374,19 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
           </div>
         ) : (
           <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
-            <p className="font-semibold text-[var(--st-ink-dark)]">PIX instantâneo</p>
+            <p className="font-semibold text-[var(--st-ink-dark)]">PIX instantaneo</p>
             <p className="mt-1 leading-6">
-              Ao clicar em gerar PIX, vamos criar o pagamento e mostrar o QR Code nesta mesma tela.
+              Ao clicar em gerar PIX, criamos o pagamento e mostramos o QR Code nesta mesma tela.
             </p>
           </div>
         )}
 
         <button className="st-btn-primary w-full" disabled={loading}>
-          {loading ? "Processando..." : mode === "pix" ? "Gerar PIX" : "Pagar com cartão"}
+          {loading ? "Processando..." : mode === "pix" ? "Gerar PIX" : "Pagar com cartao"}
         </button>
       </form>
 
-      {result?.qr_code && (
+      {result?.qr_code ? (
         <div className="mt-6">
           <PixBlock qrCodeBase64={result.qr_code_base64 || ""} qrCode={result.qr_code} />
           <p className="mt-4 text-center text-sm leading-6 text-[var(--st-ink-mid)]">
@@ -402,7 +399,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
             Verificar meu acesso
           </button>
         </div>
-      )}
+      ) : null}
 
       <p className="mt-5 text-center text-xs leading-5 text-[var(--st-ink-light)]">
         Os dados do cartao sao enviados diretamente ao Mercado Pago e nao ficam armazenados na Sticke.

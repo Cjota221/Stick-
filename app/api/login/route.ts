@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { getSupabaseService } from "@/lib/supabase-service";
 import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
+import { getStickeAccessState } from "@/lib/sticke-access";
 
 type LoginPayload = {
   email?: string;
@@ -9,7 +9,6 @@ type LoginPayload = {
 };
 
 export async function POST(request: NextRequest) {
-  const STICKE_ADMIN_EMAIL = "carolineazeved075@gmail.com";
   const body = (await request.json().catch(() => ({}))) as LoginPayload;
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
@@ -65,32 +64,19 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const service = getSupabaseService();
-  const [{ data: profile }, { data: purchase }] = await Promise.all([
-    service
-      .from("sticke_profiles")
-      .select("lifetime_access")
-      .eq("id", data.user.id)
-      .maybeSingle(),
-    email === STICKE_ADMIN_EMAIL
-      ? Promise.resolve({ data: null })
-      : service
-          .from("sticke_purchases")
-          .select("id")
-          .eq("email", data.user.email ?? email)
-          .eq("status", "approved")
-          .maybeSingle(),
-  ]);
+  const access = await getStickeAccessState({
+    id: data.user.id,
+    email: data.user.email ?? email,
+  });
 
-  const destination =
-    email === STICKE_ADMIN_EMAIL || profile?.lifetime_access || purchase ? "/galeria" : "/";
+  const destination = access.hasAccess ? "/galeria" : "/";
 
   if (debug) {
     debugLog("login:destination", {
       userId: data.user.id,
       email: data.user.email ?? email,
-      lifetimeAccess: Boolean(profile?.lifetime_access),
-      hasApprovedPurchase: Boolean(purchase),
+      lifetimeAccess: access.lifetimeAccess,
+      hasApprovedPurchase: access.hasApprovedPurchase,
       destination,
     });
   }
@@ -98,12 +84,12 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({
     ok: true,
     destination,
-    debug: debug
+      debug: debug
       ? {
           userId: data.user.id,
           email: data.user.email ?? email,
-          lifetimeAccess: Boolean(profile?.lifetime_access),
-          hasApprovedPurchase: Boolean(purchase),
+          lifetimeAccess: access.lifetimeAccess,
+          hasApprovedPurchase: access.hasApprovedPurchase,
           destination,
         }
       : undefined,
