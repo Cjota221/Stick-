@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
 
 type LoginPayload = {
   email?: string;
@@ -10,6 +11,19 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as LoginPayload;
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
+  const debug = isDebugEnabled(request.nextUrl.searchParams);
+
+  if (debug) {
+    debugLog("login:start", {
+      email,
+      hasPassword: Boolean(password),
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      hasSupabaseKey: Boolean(
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      ),
+    });
+  }
 
   if (!email.includes("@") || !password) {
     return NextResponse.json({ error: "Informe e-mail e senha." }, { status: 400 });
@@ -36,12 +50,30 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
+    if (debug) debugLog("login:error", { email, message: error?.message ?? "sign_in_failed" });
     return NextResponse.json(
       { error: error?.message || "Unable to sign in." },
       { status: 401 },
     );
   }
-  const response = NextResponse.json({ ok: true, destination: "/galeria" });
+  if (debug) {
+    debugLog("login:success", {
+      userId: data.user.id,
+      email: data.user.email ?? email,
+      destination: "/galeria",
+    });
+  }
+  const response = NextResponse.json({
+    ok: true,
+    destination: "/galeria",
+    debug: debug
+      ? {
+          userId: data.user.id,
+          email: data.user.email ?? email,
+          destination: "/galeria",
+        }
+      : undefined,
+  });
 
   cookiesToSet.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options);

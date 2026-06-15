@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { getSupabaseService } from "@/lib/supabase-service";
+import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
 
 export async function GET() {
+  const debug = isDebugEnabled();
   const user = await getAuthenticatedUser();
   if (!user) {
+    if (debug) debugLog("post-login", { hasUser: false, destination: "/login" });
     return NextResponse.json({ destination: "/login" }, { status: 401 });
   }
 
@@ -24,9 +27,29 @@ export async function GET() {
   ]);
 
   if (!purchase && !profile?.lifetime_access) {
+    if (debug) {
+      debugLog("post-login", {
+        hasUser: true,
+        userId: user.id,
+        email: user.email ?? null,
+        lifetimeAccess: Boolean(profile?.lifetime_access),
+        hasApprovedPurchase: Boolean(purchase),
+        destination: "/",
+      });
+    }
     return NextResponse.json({ destination: "/" });
   }
 
+  if (debug) {
+    debugLog("post-login", {
+      hasUser: true,
+      userId: user.id,
+      email: user.email ?? null,
+      lifetimeAccess: Boolean(profile?.lifetime_access),
+      hasApprovedPurchase: Boolean(purchase),
+      destination: "/galeria",
+    });
+  }
   return NextResponse.json({
     destination: "/galeria",
   });

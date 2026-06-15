@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import AuthShell from "@/components/AuthShell";
 
 export default function LoginPage() {
   const router = useRouter();
+  const debugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("debug") === "1";
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [debug, setDebug] = useState<Record<string, unknown> | null>(null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -26,6 +31,7 @@ export default function LoginPage() {
       }),
     });
     const payload = await response.json().catch(() => ({}));
+    if (debugEnabled) setDebug(payload.debug ?? { responseOk: response.ok, destination: payload.destination ?? null });
 
     if (!response.ok) {
       setLoading(false);
@@ -66,6 +72,11 @@ export default function LoginPage() {
           {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
+      {debugEnabled && debug && (
+        <pre className="mt-6 overflow-auto rounded-xl bg-black/80 p-4 text-left text-xs leading-5 text-green-200">
+          {JSON.stringify(debug, null, 2)}
+        </pre>
+      )}
       <div className="mt-6 flex items-center justify-between gap-4 text-sm">
         <Link href="/recuperar-senha" className="text-[var(--st-magenta)]">
           Esqueci minha senha

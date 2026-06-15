@@ -8,9 +8,18 @@ import {
   STICKE_PRODUCT_NAME,
 } from "@/lib/product";
 import { getSupabaseService } from "@/lib/supabase-service";
+import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
 
 export default async function CheckoutPage() {
+  const debug = isDebugEnabled();
   const user = await getAuthenticatedUser();
+  if (debug) {
+    debugLog("checkout:start", {
+      hasUser: Boolean(user),
+      userId: user?.id ?? null,
+      email: user?.email ?? null,
+    });
+  }
   if (!user?.email) redirect("/login?next=/checkout");
 
   const { data: profile } = await getSupabaseService()
@@ -18,6 +27,12 @@ export default async function CheckoutPage() {
     .select("name,lifetime_access")
     .eq("id", user.id)
     .maybeSingle();
+  if (debug) {
+    debugLog("checkout:profile", {
+      userId: user.id,
+      lifetimeAccess: Boolean(profile?.lifetime_access),
+    });
+  }
   if (profile?.lifetime_access) redirect("/galeria");
 
   return (
