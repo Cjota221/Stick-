@@ -8,13 +8,26 @@ export async function GET() {
     return NextResponse.json({ destination: "/login" }, { status: 401 });
   }
 
-  const { data: profile } = await getSupabaseService()
-    .from("sticke_profiles")
-    .select("lifetime_access")
-    .eq("id", user.id)
-    .maybeSingle();
+  const service = getSupabaseService();
+  const [{ data: profile }, { data: purchase }] = await Promise.all([
+    service
+      .from("sticke_profiles")
+      .select("lifetime_access")
+      .eq("id", user.id)
+      .maybeSingle(),
+    service
+      .from("sticke_purchases")
+      .select("pack_id")
+      .eq("email", user.email ?? "")
+      .eq("status", "approved")
+      .maybeSingle(),
+  ]);
+
+  if (!purchase && !profile?.lifetime_access) {
+    return NextResponse.json({ destination: "/" });
+  }
 
   return NextResponse.json({
-    destination: profile?.lifetime_access ? "/galeria" : "/checkout",
+    destination: "/galeria",
   });
 }

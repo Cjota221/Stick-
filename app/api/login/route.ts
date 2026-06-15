@@ -42,16 +42,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: profile } = await supabase
-    .from("sticke_profiles")
-    .select("lifetime_access")
-    .eq("id", data.user.id)
-    .maybeSingle();
-
-  const response = NextResponse.json({
-    ok: true,
-    destination: profile?.lifetime_access ? "/galeria" : "/checkout",
-  });
+  const response = NextResponse.json({ ok: true });
 
   cookiesToSet.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options);

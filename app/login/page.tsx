@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import AuthShell from "@/components/AuthShell";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,7 +33,16 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.assign(payload.destination || "/galeria");
+    const postLogin = await fetch("/api/post-login", { method: "GET" });
+    const postLoginPayload = await postLogin.json().catch(() => ({}));
+
+    if (!postLogin.ok) {
+      setLoading(false);
+      router.push(postLoginPayload.destination || "/login");
+      return;
+    }
+
+    router.push(postLoginPayload.destination || "/galeria");
   }
 
   return (

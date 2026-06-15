@@ -2,6 +2,11 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (!pathname.startsWith("/galeria")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -27,9 +32,18 @@ export async function middleware(request: NextRequest) {
       },
     });
 
-    await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
   } catch {
-    return response;
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
   }
   return response;
 }
