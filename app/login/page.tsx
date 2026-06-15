@@ -29,8 +29,14 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/galeria");
-    router.refresh();
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      setLoading(false);
+      setError("Sua sessão ainda não sincronizou. Tente entrar de novo.");
+      return;
+    }
+
+    window.location.assign("/galeria");
   }
 
   return (
