@@ -9,7 +9,7 @@ Tailwind CSS 4, Supabase e Mercado Pago.
 2. Preencha `.env.local` usando `.env.local.example`.
 3. Execute `supabase/schema.sql` no SQL Editor do Supabase.
 4. Configure no Supabase Auth a URL do site e o redirecionamento `/auth/callback`.
-5. Configure um SMTP próprio antes de produção para confirmação e recuperação de senha.
+5. O cadastro confirma o e-mail no servidor e entra direto no checkout; SMTP é usado apenas para recuperação de senha.
 6. Rode `npm run dev`.
 
 O SQL cria perfis vinculados ao Supabase Auth, compras com RLS e o bucket privado

@@ -17,7 +17,6 @@ export default function CadastroPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [confirmationSent, setConfirmationSent] = useState(false);
 
   function update(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -41,27 +40,35 @@ export default function CadastroPage() {
     }
 
     setLoading(true);
-    const appUrl = window.location.origin;
-    const { data, error: signUpError } = await getSupabaseBrowser().auth.signUp({
-      email: form.email.trim().toLowerCase(),
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const response = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        email: normalizedEmail,
+        phone: form.phone,
+        password: form.password,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setLoading(false);
+      setError(payload.error || "Não foi possível criar sua conta.");
+      return;
+    }
+
+    const { error: loginError } = await getSupabaseBrowser().auth.signInWithPassword({
+      email: normalizedEmail,
       password: form.password,
-      options: {
-        emailRedirectTo: `${appUrl}/auth/callback?next=/checkout`,
-        data: { name: form.name.trim(), phone: form.phone.trim() },
-      },
     });
     setLoading(false);
-
-    if (signUpError) {
-      setError(signUpError.message);
+    if (loginError) {
+      setError("Conta criada. Entre com seu e-mail e senha para continuar.");
       return;
     }
-    if (data.session) {
-      router.replace("/checkout");
-      router.refresh();
-      return;
-    }
-    setConfirmationSent(true);
+    router.replace("/checkout");
+    router.refresh();
   }
 
   return (
@@ -69,15 +76,7 @@ export default function CadastroPage() {
       title="Crie sua conta"
       description="Sua conta libera o acesso vitalício depois que o pagamento for aprovado."
     >
-      {confirmationSent ? (
-        <div className="rounded-xl bg-[var(--st-ouro-soft)] p-5 text-center">
-          <h2 className="font-bebas text-2xl">Confirme seu e-mail</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--st-ink-mid)]">
-            Enviamos um link para {form.email}. Abra o e-mail para continuar no checkout.
-          </p>
-        </div>
-      ) : (
-        <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-4">
           <label className="block text-sm font-medium">
             Nome completo
             <input
@@ -138,8 +137,7 @@ export default function CadastroPage() {
           <button className="st-btn-primary w-full" disabled={loading}>
             {loading ? "Criando conta..." : "Continuar para o pagamento"}
           </button>
-        </form>
-      )}
+      </form>
       <p className="mt-6 text-center text-sm text-[var(--st-ink-mid)]">
         Já tem conta?{" "}
         <Link href="/login" className="font-semibold text-[var(--st-magenta)]">
