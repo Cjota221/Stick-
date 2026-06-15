@@ -43,11 +43,9 @@ export default async function GaleriaPage() {
       hasDirectAccess,
       lifetimeAccess: Boolean(profile?.lifetime_access),
       hasApprovedPurchase: Boolean(purchase),
-      redirectTo: !hasDirectAccess && !purchase && !profile?.lifetime_access ? "/" : "/galeria",
+      redirectTo: "/galeria",
     });
   }
-
-  if (!hasDirectAccess && !purchase && !profile?.lifetime_access) redirect("/");
 
   return <GalleryClient customerName={profile?.name || ""} />;
 }
