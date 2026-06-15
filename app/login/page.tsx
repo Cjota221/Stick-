@@ -33,7 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(payload.destination || "/");
+    router.push(payload.destination || "/galeria");
   }
 
   return (

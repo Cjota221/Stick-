@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { getSupabaseService } from "@/lib/supabase-service";
 
 type LoginPayload = {
   email?: string;
@@ -42,26 +41,7 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
-
-  const service = getSupabaseService();
-  const [{ data: profile }, { data: purchase }] = await Promise.all([
-    service
-      .from("sticke_profiles")
-      .select("lifetime_access")
-      .eq("id", data.user.id)
-      .maybeSingle(),
-    service
-      .from("sticke_purchases")
-      .select("pack_id")
-      .eq("email", data.user.email ?? email)
-      .eq("status", "approved")
-      .maybeSingle(),
-  ]);
-
-  const response = NextResponse.json({
-    ok: true,
-    destination: purchase || profile?.lifetime_access ? "/galeria" : "/",
-  });
+  const response = NextResponse.json({ ok: true, destination: "/galeria" });
 
   cookiesToSet.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options);
