@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,26 +14,24 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    const supabase = getSupabaseBrowser();
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
+
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
     });
+    const payload = await response.json().catch(() => ({}));
 
-    if (loginError || !data.user) {
+    if (!response.ok) {
       setLoading(false);
-      setError(loginError?.message || "Não foi possível entrar.");
+      setError(payload.error || "Não foi possível entrar.");
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      setLoading(false);
-      setError("Sua sessão ainda não sincronizou. Tente entrar de novo.");
-      return;
-    }
-
-    window.location.assign("/galeria");
+    window.location.assign(payload.destination || "/galeria");
   }
 
   return (
