@@ -31,8 +31,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`${bebasNeue.variable} ${dmSans.variable} ${dmMono.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="pt-BR"
+      className={`${bebasNeue.variable} ${dmSans.variable} ${dmMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k='sticke-theme';var t=localStorage.getItem(k);if(t!=='light'&&t!=='dark'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t;}catch(e){}})();`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
