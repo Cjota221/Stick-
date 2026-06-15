@@ -2,21 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import AuthShell from "@/components/AuthShell";
 import { withDebugQuery } from "@/lib/sticke-debug";
 
 export default function LoginPage() {
   const router = useRouter();
-  const debugEnabled = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("debug") === "1";
-  }, []);
+  const [debugEnabled, setDebugEnabled] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [debug, setDebug] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    setDebugEnabled(new URLSearchParams(window.location.search).get("debug") === "1");
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
