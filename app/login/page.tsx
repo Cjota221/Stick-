@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import AuthShell from "@/components/AuthShell";
+import { withDebugQuery } from "@/lib/sticke-debug";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(payload.destination || "/galeria");
+    router.push(withDebugQuery(payload.destination || "/galeria", debugEnabled));
   }
 
   return (
@@ -72,10 +73,19 @@ export default function LoginPage() {
           {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
-      {debugEnabled && debug && (
-        <pre className="mt-6 overflow-auto rounded-xl bg-black/80 p-4 text-left text-xs leading-5 text-green-200">
-          {JSON.stringify(debug, null, 2)}
-        </pre>
+      {debugEnabled && (
+        <div className="mt-6 rounded-xl border border-dashed border-[var(--st-magenta)] bg-[var(--st-creme)] p-4 text-left text-sm">
+          <p className="font-semibold text-[var(--st-magenta)]">Modo debug ativo</p>
+          <p className="mt-1 text-[var(--st-ink-mid)]">
+            Abra esta tela com <code>/login?debug=1</code>. Depois de enviar o formulário, o
+            destino e os dados de decisão aparecem aqui.
+          </p>
+          {debug && (
+            <pre className="mt-4 overflow-auto rounded-lg bg-black/80 p-3 text-xs leading-5 text-green-200">
+              {JSON.stringify(debug, null, 2)}
+            </pre>
+          )}
+        </div>
       )}
       <div className="mt-6 flex items-center justify-between gap-4 text-sm">
         <Link href="/recuperar-senha" className="text-[var(--st-magenta)]">

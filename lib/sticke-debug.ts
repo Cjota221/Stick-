@@ -15,3 +15,8 @@ export function debugLog(scope: string, payload: Record<string, unknown>) {
 
   console.log(`[sticke:${scope}]`, payload);
 }
+
+export function withDebugQuery(pathname: string, debug: boolean) {
+  if (!debug) return pathname;
+  return `${pathname}${pathname.includes("?") ? "&" : "?"}debug=1`;
+}

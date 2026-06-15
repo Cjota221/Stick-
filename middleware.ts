@@ -58,14 +58,14 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
-      redirectUrl.search = "";
+      redirectUrl.search = debug ? "debug=1" : "";
       if (debug) debugLog("middleware:redirect", { to: "/login", reason: "no_session" });
       return NextResponse.redirect(redirectUrl);
     }
   } catch {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.search = "";
+    redirectUrl.search = debug ? "debug=1" : "";
     if (debug) debugLog("middleware:redirect", { to: "/login", reason: "exception" });
     return NextResponse.redirect(redirectUrl);
   }
