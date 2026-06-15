@@ -12,6 +12,7 @@ type PaymentSubmission = Parameters<
 
 type CheckoutResult = {
   status: "pending" | "approved" | "rejected" | "cancelled";
+  purchase_id?: string;
   payment_id?: string;
   qr_code?: string;
   qr_code_base64?: string;
@@ -25,6 +26,8 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   const router = useRouter();
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("Preencha os dados e conclua o pagamento.");
+  const [submitting, setSubmitting] = useState(false);
   const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
 
   if (publicKey && !mercadoPagoInitialized) {
@@ -44,6 +47,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
     const savedPaymentId = window.localStorage.getItem(LAST_PAYMENT_STORAGE_KEY);
     if (savedPaymentId) {
       setResult({ status: "pending", payment_id: savedPaymentId });
+      setStatusMessage("Encontramos um pagamento anterior e estamos verificando o status.");
     }
   }, []);
 
@@ -68,12 +72,14 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
       }
 
       if (response.status === 403) {
-        setError(payload.error || "Este pagamento não pertence a esta conta.");
+        setError(payload.error || "Este pagamento nao pertence a esta conta.");
+        setStatusMessage("Este pagamento nao pertence a esta conta.");
         return;
       }
 
       if (payload.status === "approved") {
         window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
+        setStatusMessage("Pagamento aprovado. Entrando na galeria...");
         router.replace("/galeria");
         router.refresh();
         return;
@@ -81,6 +87,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
       if (payload.status === "rejected" || payload.status === "cancelled") {
         setError("O pagamento foi recusado ou cancelado.");
+        setStatusMessage("Pagamento recusado ou cancelado.");
       }
     }
 
@@ -97,34 +104,49 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
   async function submit(data: PaymentSubmission) {
     setError("");
-    const response = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const payload = await response.json();
-    if (response.status === 401) {
-      router.replace("/login?next=/checkout");
-      throw new Error("Sua sessão expirou.");
-    }
-    if (!response.ok) {
-      const message = payload.error || "Não foi possível processar o pagamento.";
-      setError(message);
-      throw new Error(message);
-    }
+    setSubmitting(true);
+    setStatusMessage("Enviando pagamento para o Mercado Pago...");
 
-    setResult(payload);
-    if (payload.payment_id) {
-      window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payload.payment_id);
-    }
-    if (payload.redirect_url) {
-      window.location.assign(payload.redirect_url);
-      return;
-    }
-    if (payload.status === "approved") {
-      window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
-      router.replace("/galeria");
-      router.refresh();
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const payload = await response.json();
+
+      if (response.status === 401) {
+        router.replace("/login?next=/checkout");
+        throw new Error("Sua sessao expirou.");
+      }
+      if (!response.ok) {
+        const message = payload.error || "Nao foi possivel processar o pagamento.";
+        setError(message);
+        setStatusMessage("Nao conseguimos processar o pagamento.");
+        throw new Error(message);
+      }
+
+      setResult(payload);
+      if (payload.payment_id) {
+        window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payload.payment_id);
+      }
+
+      if (payload.redirect_url) {
+        setStatusMessage("Abrindo a etapa de autenticacao do cartao...");
+        window.location.assign(payload.redirect_url);
+        return;
+      }
+
+      if (payload.status === "approved") {
+        window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
+        setStatusMessage("Pagamento aprovado. Entrando na galeria...");
+        router.replace("/galeria");
+        router.refresh();
+      } else if (payload.status === "pending") {
+        setStatusMessage("Pagamento enviado. Estamos aguardando a confirmacao.");
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -139,6 +161,13 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   if (result?.qr_code) {
     return (
       <div>
+        <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
+          <p className="font-semibold text-[var(--st-ink-dark)]">{statusMessage}</p>
+          <p className="mt-1 text-xs">
+            <strong>Compra:</strong> {result.purchase_id || "pendente"} ·{" "}
+            <strong>Pagamento:</strong> {result.payment_id || "pendente"}
+          </p>
+        </div>
         <PixBlock
           qrCodeBase64={result.qr_code_base64 || ""}
           qrCode={result.qr_code}
@@ -158,16 +187,36 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
 
   return (
     <div>
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {(error || statusMessage) && (
+        <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-[var(--st-creme)] p-4 text-sm text-[var(--st-ink-mid)]">
+          {error ? (
+            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>
+          ) : null}
+          <p className="mt-2 font-semibold text-[var(--st-ink-dark)]">{statusMessage}</p>
+          {submitting && <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p>}
+          {result?.payment_id && (
+            <p className="mt-1 text-xs">
+              <strong>Pagamento:</strong> {result.payment_id}
+            </p>
+          )}
+          {result?.purchase_id && (
+            <p className="mt-1 text-xs">
+              <strong>Compra:</strong> {result.purchase_id}
+            </p>
+          )}
+        </div>
+      )}
       <Payment
         initialization={initialization}
         customization={{
           paymentMethods: {
             creditCard: "all",
             bankTransfer: "all",
+            debitCard: "all",
+            ticket: "all",
+            mercadoPago: "all",
             maxInstallments: 1,
             minInstallments: 1,
-            types: { included: ["creditCard", "bank_transfer"] },
           },
           visual: {
             style: { theme: "default" },
@@ -176,10 +225,15 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         }}
         locale="pt-BR"
         onSubmit={submit}
-        onError={() => setError("Não foi possível carregar a forma de pagamento.")}
+        onReady={() => setStatusMessage("Checkout pronto para pagamento.")}
+        onError={() => {
+          setSubmitting(false);
+          setError("Nao foi possivel carregar a forma de pagamento.");
+          setStatusMessage("O checkout encontrou um problema ao carregar.");
+        }}
       />
       <p className="mt-5 text-center text-xs leading-5 text-[var(--st-ink-light)]">
-        Os dados do cartão são enviados diretamente ao Mercado Pago e não ficam armazenados na Stickê.
+        Os dados do cartao sao enviados diretamente ao Mercado Pago e nao ficam armazenados na Sticke.
       </p>
     </div>
   );

@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       status: normalizedStatus,
       status_detail: payment.status_detail,
+      purchase_id: purchase.id,
       payment_id: payment.id ? String(payment.id) : "",
       qr_code: payment.point_of_interaction?.transaction_data?.qr_code ?? "",
       qr_code_base64:
