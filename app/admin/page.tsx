@@ -9,7 +9,6 @@ type PackForm = {
   name: string;
   description: string;
   cover_url: string;
-  price: number;
   is_active: boolean;
 };
 
@@ -17,7 +16,6 @@ const emptyPack: PackForm = {
   name: "",
   description: "",
   cover_url: "",
-  price: 27,
   is_active: true,
 };
 
@@ -36,15 +34,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
 
   const adminFetch = useCallback(
-    (url: string, init: RequestInit = {}, overridePassword?: string) =>
-      fetch(url, {
-        ...init,
-        headers: {
-          ...init.headers,
-          "X-Admin-Password": overridePassword ?? password,
-        },
-      }),
-    [password],
+    (url: string, init: RequestInit = {}) => fetch(url, init),
+    [],
   );
 
   const loadPacks = useCallback(async () => {
@@ -67,16 +58,17 @@ export default function AdminPage() {
   }, [adminFetch, selectedPackId]);
 
   useEffect(() => {
-    const saved = window.sessionStorage.getItem("sticke_admin_password");
-    if (!saved) return;
-    fetch("/api/admin/packs", { headers: { "X-Admin-Password": saved } }).then(async (response) => {
-      if (!response.ok) return;
-      const data = await response.json();
-      setPassword(saved);
-      setPacks(data.packs ?? []);
-      setSelectedPackId(data.packs?.[0]?.id ?? "");
-      setAuthenticated(true);
-    });
+    fetch("/api/admin/session")
+      .then((response) => response.json())
+      .then(async (session) => {
+        if (!session.authenticated) return;
+        const response = await fetch("/api/admin/packs");
+        if (!response.ok) return;
+        const data = await response.json();
+        setPacks(data.packs ?? []);
+        setSelectedPackId(data.packs?.[0]?.id ?? "");
+        setAuthenticated(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -86,13 +78,22 @@ export default function AdminPage() {
   async function login(event: FormEvent) {
     event.preventDefault();
     setLoginError("");
-    const response = await adminFetch("/api/admin/packs", {}, password);
+    const response = await fetch("/api/admin/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
     if (!response.ok) {
       setLoginError("Senha incorreta.");
       return;
     }
-    const data = await response.json();
-    window.sessionStorage.setItem("sticke_admin_password", password);
+    const packsResponse = await adminFetch("/api/admin/packs");
+    if (!packsResponse.ok) {
+      setLoginError("Não foi possível abrir o painel.");
+      return;
+    }
+    const data = await packsResponse.json();
+    setPassword("");
     setPacks(data.packs ?? []);
     setSelectedPackId(data.packs?.[0]?.id ?? "");
     setAuthenticated(true);
@@ -204,8 +205,8 @@ export default function AdminPage() {
         <button
           type="button"
           className="st-btn-ghost"
-          onClick={() => {
-            sessionStorage.removeItem("sticke_admin_password");
+          onClick={async () => {
+            await fetch("/api/admin/session", { method: "DELETE" });
             setAuthenticated(false);
             setPassword("");
           }}
@@ -220,7 +221,7 @@ export default function AdminPage() {
           className={tab === "packs" ? "st-btn-primary" : "st-btn-ghost"}
           onClick={() => setTab("packs")}
         >
-          Packs
+          Categorias
         </button>
         <button
           type="button"
@@ -236,9 +237,9 @@ export default function AdminPage() {
       {tab === "packs" ? (
         <section>
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-bebas text-3xl">Packs</h2>
+            <h2 className="font-bebas text-3xl">Categorias</h2>
             <button type="button" className="st-btn-primary" onClick={() => setPackForm(emptyPack)}>
-              + Novo pack
+              + Nova categoria
             </button>
           </div>
 
@@ -251,17 +252,6 @@ export default function AdminPage() {
                   required
                   value={packForm.name}
                   onChange={(event) => setPackForm({ ...packForm, name: event.target.value })}
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Preço
-                <input
-                  className="st-input mt-2"
-                  type="number"
-                  min="0"
-                  step=".01"
-                  value={packForm.price}
-                  onChange={(event) => setPackForm({ ...packForm, price: Number(event.target.value) })}
                 />
               </label>
               <label className="text-sm font-medium md:col-span-2">
@@ -298,7 +288,7 @@ export default function AdminPage() {
                   checked={packForm.is_active}
                   onChange={(event) => setPackForm({ ...packForm, is_active: event.target.checked })}
                 />
-                Pack ativo
+                Categoria visível na galeria
               </label>
               <div className="flex gap-2 md:col-span-2">
                 <button className="st-btn-primary" disabled={busy}>Salvar</button>
@@ -316,12 +306,12 @@ export default function AdminPage() {
                 <div className="min-w-[180px] flex-1">
                   <h3 className="font-bebas text-xl">{pack.name}</h3>
                   <p className="text-xs text-[var(--st-ink-mid)]">
-                    R$ {pack.price.toFixed(2).replace(".", ",")} · {pack.sticker_count ?? 0} figurinhas
+                    {pack.sticker_count ?? 0} figurinhas
                   </p>
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={Boolean(pack.is_active)} onChange={() => togglePack(pack)} />
-                  Ativo
+                  Visível
                 </label>
                 <button
                   type="button"
@@ -332,7 +322,6 @@ export default function AdminPage() {
                       name: pack.name,
                       description: pack.description || "",
                       cover_url: pack.cover_url || "",
-                      price: pack.price,
                       is_active: Boolean(pack.is_active),
                     })
                   }
@@ -354,7 +343,7 @@ export default function AdminPage() {
             value={selectedPackId}
             onChange={(event) => setSelectedPackId(event.target.value)}
           >
-            <option value="">Selecione um pack</option>
+            <option value="">Selecione uma categoria</option>
             {packs.map((pack) => <option key={pack.id} value={pack.id}>{pack.name}</option>)}
           </select>
 

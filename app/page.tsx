@@ -1,19 +1,39 @@
 import Link from "next/link";
 import Header from "@/components/Header";
 import PackImage from "@/components/PackImage";
+import { STICKE_ACCESS_PRICE } from "@/lib/product";
+import { getStoragePath } from "@/lib/storage";
 import { getSupabaseService } from "@/lib/supabase-service";
 import type { Pack } from "@/types/sticke";
 
+export const dynamic = "force-dynamic";
+
 async function getPacks(): Promise<Pack[]> {
   try {
-    const { data, error } = await getSupabaseService()
+    const supabase = getSupabaseService();
+    const { data, error } = await supabase
       .from("sticke_packs")
       .select("id,name,description,cover_url,price,sort_order,sticke_stickers(count)")
       .eq("is_active", true)
       .order("sort_order");
     if (error) throw error;
+    const coverPaths = (data ?? [])
+      .map((pack) => pack.cover_url && getStoragePath(pack.cover_url))
+      .filter((path): path is string => Boolean(path));
+    const { data: signedCovers } = coverPaths.length
+      ? await supabase.storage.from("sticke-assets").createSignedUrls(coverPaths, 60 * 60)
+      : { data: [] };
+    const signedByPath = new Map(
+      (signedCovers ?? [])
+        .filter((item) => item.path && item.signedUrl)
+        .map((item) => [item.path as string, item.signedUrl as string]),
+    );
+
     return (data ?? []).map((pack) => ({
       ...pack,
+      cover_url: pack.cover_url
+        ? signedByPath.get(getStoragePath(pack.cover_url)) || null
+        : null,
       price: Number(pack.price),
       sticker_count: pack.sticke_stickers?.[0]?.count ?? 0,
     }));
@@ -25,18 +45,18 @@ async function getPacks(): Promise<Pack[]> {
 const steps = [
   {
     number: "01",
-    title: "Escolha seu pack",
-    text: "Encontre as figurinhas que combinam com a sua marca e com o seu jeito de vender.",
+    title: "Crie sua conta",
+    text: "Cadastre nome, telefone, e-mail e uma senha para proteger sua galeria.",
   },
   {
     number: "02",
     title: "Pague uma vez",
-    text: "Finalize com PIX e receba seu código assim que o pagamento for aprovado.",
+    text: "Finalize por PIX ou cartão em 1x. O acesso vitalício custa R$ 37,90.",
   },
   {
     number: "03",
-    title: "Use sem limites",
-    text: "Copie ou baixe cada PNG e leve direto para o Canva, Instagram ou WhatsApp.",
+    title: "Explore tudo",
+    text: "Entre com sua conta, navegue pelas categorias e copie ou baixe cada PNG.",
   },
 ];
 
@@ -50,7 +70,7 @@ const useCases = [
 const faqs = [
   ["Preciso instalar algum aplicativo?", "Não. Você acessa sua galeria pelo navegador do celular ou computador."],
   ["As figurinhas têm fundo transparente?", "Sim. Os arquivos são PNG e entram limpos nas suas artes, stories e mensagens."],
-  ["O acesso expira?", "Não. Guarde seu código e volte à sua galeria sempre que precisar."],
+  ["O acesso expira?", "Não. O acesso é vitalício e fica vinculado à sua conta."],
   ["Posso usar no Canva e no Instagram?", "Sim. Você pode baixar a imagem ou copiar e colar nos aplicativos compatíveis."],
 ];
 
@@ -60,6 +80,11 @@ function StickerPreview({ text, className }: { text: string; className: string }
 
 export default async function Home() {
   const packs = await getPacks();
+  const featuredCategories = packs.slice(0, 6);
+  const totalStickers = packs.reduce(
+    (total, pack) => total + (pack.sticker_count ?? 0),
+    0,
+  );
 
   return (
     <>
@@ -80,13 +105,13 @@ export default async function Home() {
                 stories, artes e conversas com cara de marca profissional.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-                <Link href="#packs" className="st-btn-primary landing-main-cta">
-                  Quero minhas figurinhas <span aria-hidden="true">→</span>
+                <Link href="/cadastro" className="st-btn-primary landing-main-cta">
+                  Quero acesso completo <span aria-hidden="true">→</span>
                 </Link>
                 <Link href="#como-funciona" className="landing-text-link">Ver como funciona</Link>
               </div>
               <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-[var(--st-ink-mid)] lg:justify-start">
-                <span>✓ Pagamento por PIX</span>
+                <span>✓ PIX ou cartão</span>
                 <span>✓ Acesso imediato</span>
                 <span>✓ Sem mensalidade</span>
               </div>
@@ -96,7 +121,7 @@ export default async function Home() {
               <div className="landing-phone">
                 <div className="landing-phone-top">
                   <img src="/brand/logo.png" alt="Stickê" className="h-8 w-auto" />
-                  <span>Meu pack</span>
+                  <span>Galeria completa</span>
                 </div>
                 <div className="landing-phone-notice">Sua galeria criativa, sempre com você ✦</div>
                 <div className="grid grid-cols-3 gap-2.5 p-4">
@@ -182,20 +207,23 @@ export default async function Home() {
         <section id="packs" className="relative scroll-mt-8 bg-white px-4 py-20 md:px-8 md:py-28">
           <div className="mx-auto max-w-[1080px]">
             <div className="text-center">
-              <span className="landing-eyebrow">Escolha o seu</span>
+              <span className="landing-eyebrow">Tudo incluso no acesso</span>
               <h2 className="font-bebas mt-3 text-6xl text-[var(--st-magenta)] sm:text-7xl">
-                Packs que dão o recado
+                Categorias para toda ocasião
               </h2>
               <p className="mx-auto mt-4 max-w-[520px] text-sm leading-6 text-[var(--st-ink-mid)]">
-                Uma compra, várias possibilidades. Use quantas vezes quiser no conteúdo da sua marca.
+                Você não compra cada categoria separadamente. O pagamento único libera todas elas.
+              </p>
+              <p className="font-mono-st mt-4 text-sm font-medium text-[var(--st-magenta)]">
+                {packs.length} categorias · {totalStickers} figurinhas
               </p>
             </div>
             {packs.length ? (
               <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {packs.map((pack, index) => (
+                {featuredCategories.map((pack, index) => (
                   <article key={pack.id} className="landing-pack-card group">
                     <div className="relative overflow-hidden">
-                      {index === 0 && <span className="landing-pack-badge">Favorito</span>}
+                      {index === 0 && <span className="landing-pack-badge">Incluso</span>}
                       <PackImage pack={pack} className="aspect-square h-auto w-full transition duration-500 group-hover:scale-[1.04]" />
                     </div>
                     <div className="p-5">
@@ -204,12 +232,12 @@ export default async function Home() {
                           <h3 className="font-bebas text-[28px] leading-none">{pack.name}</h3>
                           <p className="mt-2 text-[13px] text-[var(--st-ink-mid)]">{pack.sticker_count} figurinhas PNG</p>
                         </div>
-                        <p className="font-mono-st text-xl font-medium text-[var(--st-magenta)]">
-                          R$ {pack.price.toFixed(2).replace(".", ",")}
-                        </p>
+                        <span className="rounded-full bg-[var(--st-ouro-soft)] px-3 py-1 text-xs font-semibold">
+                          Incluso
+                        </span>
                       </div>
                       {pack.description && <p className="mt-4 line-clamp-2 text-sm leading-6 text-[var(--st-ink-mid)]">{pack.description}</p>}
-                      <Link href={`/checkout/${pack.id}`} className="st-btn-primary mt-5 w-full">Escolher este pack</Link>
+                      <Link href="/cadastro" className="st-btn-primary mt-5 w-full">Liberar todas por R$ 37,90</Link>
                     </div>
                   </article>
                 ))}
@@ -219,6 +247,16 @@ export default async function Home() {
                 <img src="/brand/c/simbolo.png" alt="" className="mx-auto h-24 w-auto" />
                 <h3 className="font-bebas mt-5 text-3xl">A primeira coleção está chegando</h3>
                 <p className="mt-2 text-sm text-[var(--st-ink-mid)]">Estamos preparando packs lindos para dar voz à sua marca.</p>
+              </div>
+            )}
+            {packs.length > featuredCategories.length && (
+              <div className="mt-10 text-center">
+                <p className="text-sm text-[var(--st-ink-mid)]">
+                  E mais {packs.length - featuredCategories.length} categorias dentro da galeria.
+                </p>
+                <Link href="/cadastro" className="st-btn-ouro mt-4">
+                  Liberar biblioteca completa
+                </Link>
               </div>
             )}
           </div>
@@ -241,7 +279,7 @@ export default async function Home() {
                 Você já coloca carinho no produto, no atendimento e em cada entrega.
                 Agora a sua comunicação pode carregar essa mesma energia.
               </p>
-              <Link href="#packs" className="st-btn-ouro mt-8">Encontrar meu pack</Link>
+              <Link href="/cadastro" className="st-btn-ouro mt-8">Quero acesso completo</Link>
             </div>
           </div>
         </section>
@@ -269,10 +307,13 @@ export default async function Home() {
             Sua marca merece ser lembrada.
           </h2>
           <p className="mx-auto mt-5 max-w-[520px] text-base leading-7 text-[var(--st-ink-mid)]">
-            Escolha um pack, pague uma única vez e comece a criar conteúdo com mais presença hoje.
+            Pague uma única vez e tenha acesso a todas as categorias e milhares de figurinhas.
           </p>
-          <Link href="#packs" className="st-btn-primary landing-main-cta mt-8">
-            Ver os packs disponíveis <span>→</span>
+          <p className="font-mono-st mt-4 text-3xl font-medium text-[var(--st-magenta)]">
+            R$ {STICKE_ACCESS_PRICE.toFixed(2).replace(".", ",")}
+          </p>
+          <Link href="/cadastro" className="st-btn-primary landing-main-cta mt-8">
+            Comprar acesso completo <span>→</span>
           </Link>
         </section>
       </main>
@@ -281,7 +322,7 @@ export default async function Home() {
         <div className="mx-auto flex max-w-[1080px] flex-col items-center justify-between gap-4 sm:flex-row">
           <img src="/brand/logo.png" alt="Stickê" className="h-10 w-auto" />
           <p className="text-center text-xs text-[var(--st-ink-mid)]">© Stickê · Figurinhas para marcas com personalidade</p>
-          <Link href="/acesso" className="text-xs font-semibold text-[var(--st-magenta)]">Já comprei</Link>
+          <Link href="/login" className="text-xs font-semibold text-[var(--st-magenta)]">Já comprei</Link>
         </div>
       </footer>
     </>
