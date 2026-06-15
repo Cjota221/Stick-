@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getSupabaseService } from "@/lib/supabase-service";
 import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
 
 type LoginPayload = {
@@ -8,6 +9,7 @@ type LoginPayload = {
 };
 
 export async function POST(request: NextRequest) {
+  const STICKE_ADMIN_EMAIL = "carolineazeved075@gmail.com";
   const body = (await request.json().catch(() => ({}))) as LoginPayload;
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
@@ -60,17 +62,49 @@ export async function POST(request: NextRequest) {
     debugLog("login:success", {
       userId: data.user.id,
       email: data.user.email ?? email,
-      destination: "/galeria",
     });
   }
+
+  const service = getSupabaseService();
+  const [{ data: profile }, { data: purchase }] = await Promise.all([
+    service
+      .from("sticke_profiles")
+      .select("lifetime_access")
+      .eq("id", data.user.id)
+      .maybeSingle(),
+    email === STICKE_ADMIN_EMAIL
+      ? Promise.resolve({ data: null })
+      : service
+          .from("sticke_purchases")
+          .select("id")
+          .eq("email", data.user.email ?? email)
+          .eq("status", "approved")
+          .maybeSingle(),
+  ]);
+
+  const destination =
+    email === STICKE_ADMIN_EMAIL || profile?.lifetime_access || purchase ? "/galeria" : "/checkout";
+
+  if (debug) {
+    debugLog("login:destination", {
+      userId: data.user.id,
+      email: data.user.email ?? email,
+      lifetimeAccess: Boolean(profile?.lifetime_access),
+      hasApprovedPurchase: Boolean(purchase),
+      destination,
+    });
+  }
+
   const response = NextResponse.json({
     ok: true,
-    destination: "/galeria",
+    destination,
     debug: debug
       ? {
           userId: data.user.id,
           email: data.user.email ?? email,
-          destination: "/galeria",
+          lifetimeAccess: Boolean(profile?.lifetime_access),
+          hasApprovedPurchase: Boolean(purchase),
+          destination,
         }
       : undefined,
   });
