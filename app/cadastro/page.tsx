@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 export default function CadastroPage() {
-  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -58,17 +55,18 @@ export default function CadastroPage() {
       return;
     }
 
-    const { error: loginError } = await getSupabaseBrowser().auth.signInWithPassword({
-      email: normalizedEmail,
-      password: form.password,
+    const loginResponse = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail, password: form.password }),
     });
     setLoading(false);
-    if (loginError) {
+    if (!loginResponse.ok) {
       setError("Conta criada. Entre com seu e-mail e senha para continuar.");
       return;
     }
-    router.replace("/checkout");
-    router.refresh();
+    const loginPayload = await loginResponse.json();
+    window.location.assign(loginPayload.destination || "/checkout");
   }
 
   return (
