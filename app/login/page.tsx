@@ -29,7 +29,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/galeria");
+    const destinationResponse = await fetch("/api/post-login", { cache: "no-store" });
+    const destinationPayload = await destinationResponse.json().catch(() => ({}));
+    router.replace(destinationPayload.destination || "/galeria");
     router.refresh();
   }
 
