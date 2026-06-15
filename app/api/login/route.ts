@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   ]);
 
   const destination =
-    email === STICKE_ADMIN_EMAIL || profile?.lifetime_access || purchase ? "/galeria" : "/checkout";
+    email === STICKE_ADMIN_EMAIL || profile?.lifetime_access || purchase ? "/galeria" : "/";
 
   if (debug) {
     debugLog("login:destination", {

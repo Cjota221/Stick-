@@ -2,7 +2,7 @@
 
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { useRouter } from "next/navigation";
-import { type ComponentProps, useMemo, useState } from "react";
+import { type ComponentProps, useEffect, useMemo, useState } from "react";
 import PixBlock from "@/components/PixBlock";
 import { STICKE_ACCESS_PRICE } from "@/lib/product";
 
@@ -12,12 +12,14 @@ type PaymentSubmission = Parameters<
 
 type CheckoutResult = {
   status: "pending" | "approved" | "rejected" | "cancelled";
+  payment_id?: string;
   qr_code?: string;
   qr_code_base64?: string;
   redirect_url?: string;
 };
 
 let mercadoPagoInitialized = false;
+const LAST_PAYMENT_STORAGE_KEY = "sticke:lastPaymentId";
 
 export default function CheckoutPayment({ email, name }: { email: string; name: string }) {
   const router = useRouter();
@@ -38,6 +40,61 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
     [email, name],
   );
 
+  useEffect(() => {
+    const savedPaymentId = window.localStorage.getItem(LAST_PAYMENT_STORAGE_KEY);
+    if (savedPaymentId) {
+      setResult({ status: "pending", payment_id: savedPaymentId });
+    }
+  }, []);
+
+  useEffect(() => {
+    const paymentId = result?.payment_id ?? "";
+    const status = result?.status;
+    if (!paymentId || status !== "pending") return;
+
+    let cancelled = false;
+
+    async function checkStatus() {
+      const response = await fetch(`/api/checkout/status?paymentId=${encodeURIComponent(paymentId)}`, {
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (cancelled) return;
+
+      if (response.status === 401) {
+        router.replace("/login?next=/checkout");
+        return;
+      }
+
+      if (response.status === 403) {
+        setError(payload.error || "Este pagamento não pertence a esta conta.");
+        return;
+      }
+
+      if (payload.status === "approved") {
+        window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
+        router.replace("/galeria");
+        router.refresh();
+        return;
+      }
+
+      if (payload.status === "rejected" || payload.status === "cancelled") {
+        setError("O pagamento foi recusado ou cancelado.");
+      }
+    }
+
+    void checkStatus();
+    const interval = window.setInterval(() => {
+      void checkStatus();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [result?.payment_id, result?.status, router]);
+
   async function submit(data: PaymentSubmission) {
     setError("");
     const response = await fetch("/api/checkout", {
@@ -57,11 +114,15 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
     }
 
     setResult(payload);
+    if (payload.payment_id) {
+      window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payload.payment_id);
+    }
     if (payload.redirect_url) {
       window.location.assign(payload.redirect_url);
       return;
     }
     if (payload.status === "approved") {
+      window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
       router.replace("/galeria");
       router.refresh();
     }
@@ -84,6 +145,9 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         />
         <p className="mt-4 text-center text-sm leading-6 text-[var(--st-ink-mid)]">
           Assim que o PIX for aprovado, entre na galeria com esta mesma conta.
+        </p>
+        <p className="mt-2 text-center text-xs text-[var(--st-ink-light)]">
+          Estamos verificando o pagamento automaticamente em segundo plano.
         </p>
         <button className="st-btn-primary mt-4 w-full" onClick={() => router.push("/galeria")}>
           Verificar meu acesso

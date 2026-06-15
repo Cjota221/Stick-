@@ -66,7 +66,7 @@ export default function CadastroPage() {
       return;
     }
     const loginPayload = await loginResponse.json();
-    window.location.assign(loginPayload.destination || "/checkout");
+    window.location.assign(loginPayload.destination === "/galeria" ? "/galeria" : "/checkout");
   }
 
   return (
