@@ -33,16 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    const postLogin = await fetch("/api/post-login", { method: "GET" });
-    const postLoginPayload = await postLogin.json().catch(() => ({}));
-
-    if (!postLogin.ok) {
-      setLoading(false);
-      router.push(postLoginPayload.destination || "/login");
-      return;
-    }
-
-    router.push(postLoginPayload.destination || "/galeria");
+    router.push(payload.destination || "/");
   }
 
   return (
