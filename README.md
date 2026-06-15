@@ -19,7 +19,8 @@ O SQL cria perfis vinculados ao Supabase Auth, compras com RLS e o bucket privad
 
 - `NEXT_PUBLIC_APP_URL`: URL pública da aplicação, sem barra final.
 - `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase.
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública/anon do Supabase.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: chave pública recomendada pelo Supabase.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública legada, aceita como alternativa.
 - `SUPABASE_SERVICE_ROLE_KEY`: chave de serviço, somente no servidor.
 - `NEXT_PUBLIC_MP_PUBLIC_KEY`: chave pública usada pelo Payment Brick.
 - `MERCADOPAGO_ACCESS_TOKEN`: token privado do Mercado Pago, somente no servidor.
