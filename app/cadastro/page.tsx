@@ -38,7 +38,7 @@ export default function CadastroPage() {
 
     setLoading(true);
     const normalizedEmail = form.email.trim().toLowerCase();
-    const response = await fetch("/api/signup", {
+    const response = await fetch("/api/checkout/criar-usuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -66,7 +66,7 @@ export default function CadastroPage() {
       return;
     }
     const loginPayload = await loginResponse.json();
-    window.location.assign(loginPayload.destination || "/checkout");
+    window.location.assign(loginPayload.destination === "/galeria" ? "/galeria" : "/checkout");
   }
 
   return (

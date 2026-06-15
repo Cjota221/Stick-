@@ -3,8 +3,7 @@ import { getAuthenticatedUser } from "@/lib/auth";
 import { getStoragePath } from "@/lib/storage";
 import { getSupabaseService } from "@/lib/supabase-service";
 import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
-
-const STICKE_ADMIN_EMAIL = "carolineazeved075@gmail.com";
+import { getStickeAccessState } from "@/lib/sticke-access";
 
 export async function GET(request: NextRequest) {
   const debug = isDebugEnabled(request.nextUrl.searchParams);
@@ -14,41 +13,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
   }
 
-  const email = user.email?.trim().toLowerCase() ?? "";
-  const hasDirectAccess = email === STICKE_ADMIN_EMAIL;
-
+  const access = await getStickeAccessState({ id: user.id, email: user.email });
   const supabase = getSupabaseService();
-  const [{ data: profile }, { data: purchase }] = await Promise.all([
-    supabase
-      .from("sticke_profiles")
-      .select("lifetime_access,name")
-      .eq("id", user.id)
-      .maybeSingle(),
-    hasDirectAccess
-      ? Promise.resolve({ data: null })
-      : supabase
-          .from("sticke_purchases")
-          .select("id")
-          .eq("email", user.email ?? "")
-          .eq("status", "approved")
-          .maybeSingle(),
-  ]);
 
-  const hasAccess = hasDirectAccess || Boolean(profile?.lifetime_access) || Boolean(purchase);
   if (debug) {
     debugLog("api/galeria", {
       hasUser: true,
       userId: user.id,
-      email,
-      hasDirectAccess,
-      lifetimeAccess: Boolean(profile?.lifetime_access),
-      hasApprovedPurchase: Boolean(purchase),
-      hasAccess,
+      email: access.email,
+      hasDirectAccess: access.hasDirectAccess,
+      lifetimeAccess: access.lifetimeAccess,
+      hasApprovedPurchase: access.hasApprovedPurchase,
+      hasAccess: access.hasAccess,
       categoryId: request.nextUrl.searchParams.get("category"),
     });
   }
 
-  if (!hasAccess) {
+  if (!access.hasAccess) {
     return NextResponse.json({ error: "Pagamento ainda não aprovado." }, { status: 403 });
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth";
-import { getSupabaseService } from "@/lib/supabase-service";
 import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
+import { getStickeAccessState } from "@/lib/sticke-access";
 
 export async function GET() {
   const debug = isDebugEnabled();
@@ -11,29 +11,16 @@ export async function GET() {
     return NextResponse.json({ destination: "/login" }, { status: 401 });
   }
 
-  const service = getSupabaseService();
-  const [{ data: profile }, { data: purchase }] = await Promise.all([
-    service
-      .from("sticke_profiles")
-      .select("lifetime_access")
-      .eq("id", user.id)
-      .maybeSingle(),
-    service
-      .from("sticke_purchases")
-      .select("pack_id")
-      .eq("email", user.email ?? "")
-      .eq("status", "approved")
-      .maybeSingle(),
-  ]);
+  const access = await getStickeAccessState({ id: user.id, email: user.email });
 
-  if (!purchase && !profile?.lifetime_access) {
+  if (!access.hasAccess) {
     if (debug) {
       debugLog("post-login", {
         hasUser: true,
         userId: user.id,
         email: user.email ?? null,
-        lifetimeAccess: Boolean(profile?.lifetime_access),
-        hasApprovedPurchase: Boolean(purchase),
+        lifetimeAccess: access.lifetimeAccess,
+        hasApprovedPurchase: access.hasApprovedPurchase,
         destination: "/",
       });
     }
@@ -45,8 +32,8 @@ export async function GET() {
       hasUser: true,
       userId: user.id,
       email: user.email ?? null,
-      lifetimeAccess: Boolean(profile?.lifetime_access),
-      hasApprovedPurchase: Boolean(purchase),
+      lifetimeAccess: access.lifetimeAccess,
+      hasApprovedPurchase: access.hasApprovedPurchase,
       destination: "/galeria",
     });
   }

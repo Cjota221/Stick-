@@ -7,8 +7,8 @@ import {
   STICKE_PRODUCT_DESCRIPTION,
   STICKE_PRODUCT_NAME,
 } from "@/lib/product";
-import { getSupabaseService } from "@/lib/supabase-service";
 import { debugLog, isDebugEnabled } from "@/lib/sticke-debug";
+import { getStickeAccessState } from "@/lib/sticke-access";
 
 export default async function CheckoutPage() {
   const debug = isDebugEnabled();
@@ -22,18 +22,15 @@ export default async function CheckoutPage() {
   }
   if (!user?.email) redirect("/login?next=/checkout");
 
-  const { data: profile } = await getSupabaseService()
-    .from("sticke_profiles")
-    .select("name,lifetime_access")
-    .eq("id", user.id)
-    .maybeSingle();
+  const access = await getStickeAccessState({ id: user.id, email: user.email });
   if (debug) {
     debugLog("checkout:profile", {
       userId: user.id,
-      lifetimeAccess: Boolean(profile?.lifetime_access),
+      lifetimeAccess: access.lifetimeAccess,
+      hasApprovedPurchase: access.hasApprovedPurchase,
     });
   }
-  if (profile?.lifetime_access) redirect("/galeria");
+  if (access.hasAccess) redirect("/galeria");
 
   return (
     <>
@@ -53,7 +50,7 @@ export default async function CheckoutPage() {
               Pagamento único · PIX ou cartão de crédito em 1x
             </p>
           </div>
-          <CheckoutPayment email={user.email} name={profile?.name || ""} />
+          <CheckoutPayment email={user.email} name={user.user_metadata?.name?.toString() || ""} />
         </section>
       </main>
     </>
