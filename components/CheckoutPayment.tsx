@@ -108,7 +108,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
     setStatusMessage("Enviando pagamento para o Mercado Pago...");
 
     try {
-      const response = await fetch("/api/checkout", {
+      const response = await fetch("/api/checkout/processar-pagamento", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

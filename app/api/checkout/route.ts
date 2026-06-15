@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         issuer_id: Number.isFinite(issuerId) ? issuerId : undefined,
         payment_method_id: paymentMethodId,
         external_reference: purchase.id,
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook`,
+        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/mercadopago`,
         payer: {
           email: user.email,
           identification: formData.payer?.identification,
