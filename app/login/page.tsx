@@ -29,12 +29,7 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("sticke_profiles")
-      .select("lifetime_access")
-      .eq("id", data.user.id)
-      .maybeSingle();
-    router.replace(profile?.lifetime_access ? "/galeria" : "/checkout");
+    router.replace("/galeria");
     router.refresh();
   }
 
