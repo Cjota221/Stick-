@@ -6,6 +6,12 @@ import { getSupabaseService } from "@/lib/supabase-service";
 
 type CheckoutPayload = {
   paymentType?: string;
+  paymentMethodId?: string;
+  token?: string;
+  issuerId?: string | number;
+  payer?: {
+    identification?: { type?: string; number?: string };
+  };
   formData?: {
     token?: string;
     issuer_id?: string | number;
@@ -25,14 +31,18 @@ export async function POST(request: NextRequest) {
 
     const payload = (await request.json()) as CheckoutPayload;
     const formData = payload.formData ?? {};
-    const paymentMethodId = String(formData.payment_method_id || "");
+    const paymentMethodId = String(
+      payload.paymentMethodId || formData.payment_method_id || "",
+    );
+
     if (!paymentMethodId) {
       return NextResponse.json({ error: "Escolha uma forma de pagamento." }, { status: 400 });
     }
 
     const isPix = paymentMethodId === "pix" || payload.paymentType === "bank_transfer";
-    if (!isPix && !formData.token) {
-      return NextResponse.json({ error: "Os dados do cartão não foram tokenizados." }, { status: 400 });
+    const token = String(payload.token || formData.token || "");
+    if (!isPix && !token) {
+      return NextResponse.json({ error: "Os dados do cartao nao foram tokenizados." }, { status: 400 });
     }
 
     const supabase = getSupabaseService();
@@ -56,22 +66,23 @@ export async function POST(request: NextRequest) {
       })
       .select("id")
       .single();
-    if (purchaseError || !purchase) throw purchaseError || new Error("Compra não criada.");
+    if (purchaseError || !purchase) throw purchaseError || new Error("Compra nao criada.");
 
-    const issuerId = Number(formData.issuer_id);
+    const issuerId = Number(payload.issuerId || formData.issuer_id);
+    const payerIdentification = payload.payer?.identification || formData.payer?.identification;
     const payment = await getPaymentClient().create({
       body: {
         transaction_amount: STICKE_ACCESS_PRICE,
         description: STICKE_PRODUCT_NAME,
         installments: 1,
-        token: isPix ? undefined : formData.token,
+        token: isPix ? undefined : token,
         issuer_id: Number.isFinite(issuerId) ? issuerId : undefined,
         payment_method_id: paymentMethodId,
         external_reference: purchase.id,
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/mercadopago`,
         payer: {
           email: user.email,
-          identification: formData.payer?.identification,
+          identification: payerIdentification,
         },
         additional_info: {
           ip_address:
@@ -127,7 +138,7 @@ export async function POST(request: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { error: "Não foi possível processar o pagamento. Confira os dados e tente novamente." },
+      { error: "Nao foi possivel processar o pagamento. Confira os dados e tente novamente." },
       { status: 500 },
     );
   }

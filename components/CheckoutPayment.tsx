@@ -1,14 +1,9 @@
 "use client";
 
-import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type ComponentProps, useEffect, useMemo, useState } from "react";
 import PixBlock from "@/components/PixBlock";
 import { STICKE_ACCESS_PRICE } from "@/lib/product";
-
-type PaymentSubmission = Parameters<
-  NonNullable<ComponentProps<typeof Payment>["onSubmit"]>
->[0];
 
 type CheckoutResult = {
   status: "pending" | "approved" | "rejected" | "cancelled";
@@ -19,29 +14,47 @@ type CheckoutResult = {
   redirect_url?: string;
 };
 
-let mercadoPagoInitialized = false;
+type TokenizeResult = {
+  token: string;
+  paymentMethodId: string;
+  cardLast4?: string;
+};
+
 const LAST_PAYMENT_STORAGE_KEY = "sticke:lastPaymentId";
+
+type PaymentMode = "pix" | "card";
+
+type CardForm = {
+  cardNumber: string;
+  cardholderName: string;
+  expirationMonth: string;
+  expirationYear: string;
+  securityCode: string;
+  cpf: string;
+};
+
+const emptyCardForm: CardForm = {
+  cardNumber: "",
+  cardholderName: "",
+  expirationMonth: "",
+  expirationYear: "",
+  securityCode: "",
+  cpf: "",
+};
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
 
 export default function CheckoutPayment({ email, name }: { email: string; name: string }) {
   const router = useRouter();
+  const [mode, setMode] = useState<PaymentMode>("pix");
+  const [card, setCard] = useState<CardForm>(emptyCardForm);
   const [result, setResult] = useState<CheckoutResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [statusMessage, setStatusMessage] = useState("Preencha os dados e conclua o pagamento.");
-  const [submitting, setSubmitting] = useState(false);
-  const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
-
-  if (publicKey && !mercadoPagoInitialized) {
-    initMercadoPago(publicKey, { locale: "pt-BR" });
-    mercadoPagoInitialized = true;
-  }
-
-  const initialization = useMemo(
-    () => ({
-      amount: STICKE_ACCESS_PRICE,
-      payer: { email, firstName: name },
-    }),
-    [email, name],
-  );
+  const [statusMessage, setStatusMessage] = useState("Escolha Pix ou cartão para continuar.");
+  const [publicKeyMissing] = useState(!process.env.NEXT_PUBLIC_MP_PUBLIC_KEY);
 
   useEffect(() => {
     const savedPaymentId = window.localStorage.getItem(LAST_PAYMENT_STORAGE_KEY);
@@ -52,9 +65,8 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   }, []);
 
   useEffect(() => {
-    const paymentId = result?.payment_id ?? "";
-    const status = result?.status;
-    if (!paymentId || status !== "pending") return;
+    const paymentId = result?.payment_id || "";
+    if (!paymentId || result?.status !== "pending") return;
 
     let cancelled = false;
 
@@ -63,7 +75,6 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         cache: "no-store",
       });
       const payload = await response.json().catch(() => ({}));
-
       if (cancelled) return;
 
       if (response.status === 401) {
@@ -102,98 +113,138 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
     };
   }, [result?.payment_id, result?.status, router]);
 
-  async function submit(data: PaymentSubmission) {
+  async function createPayment(payload: Record<string, unknown>) {
+    const response = await fetch("/api/checkout/processar-pagamento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      router.replace("/login?next=/checkout");
+      throw new Error("Sua sessao expirou.");
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Nao foi possivel processar o pagamento.");
+    }
+
+    return data as CheckoutResult;
+  }
+
+  async function submitPix() {
     setError("");
-    setSubmitting(true);
-    setStatusMessage("Enviando pagamento para o Mercado Pago...");
+    setLoading(true);
+    setStatusMessage("Gerando o PIX...");
 
     try {
-      const response = await fetch("/api/checkout/processar-pagamento", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+      const payment = await createPayment({
+        paymentType: "bank_transfer",
+        paymentMethodId: "pix",
       });
-      const payload = await response.json();
 
-      if (response.status === 401) {
-        router.replace("/login?next=/checkout");
-        throw new Error("Sua sessao expirou.");
-      }
-      if (!response.ok) {
-        const message = payload.error || "Nao foi possivel processar o pagamento.";
-        setError(message);
-        setStatusMessage("Nao conseguimos processar o pagamento.");
-        throw new Error(message);
+      setResult(payment);
+      if (payment.payment_id) {
+        window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payment.payment_id);
       }
 
-      setResult(payload);
-      if (payload.payment_id) {
-        window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payload.payment_id);
-      }
-
-      if (payload.redirect_url) {
-        setStatusMessage("Abrindo a etapa de autenticacao do cartao...");
-        window.location.assign(payload.redirect_url);
+      if (payment.redirect_url) {
+        window.location.assign(payment.redirect_url);
         return;
       }
 
-      if (payload.status === "approved") {
+      setStatusMessage("PIX gerado. Agora e so pagar e aguardarmos a confirmacao.");
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Nao foi possivel gerar o PIX.");
+      setStatusMessage("Nao foi possivel gerar o PIX.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitCard() {
+    setError("");
+    setLoading(true);
+    setStatusMessage("Tokenizando o cartao...");
+
+    try {
+      const tokenResponse = await fetch("/api/checkout/tokenizar-cartao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardNumber: card.cardNumber,
+          expirationMonth: card.expirationMonth,
+          expirationYear: card.expirationYear,
+          securityCode: card.securityCode,
+        }),
+      });
+      const tokenPayload = (await tokenResponse.json().catch(() => ({}))) as Partial<TokenizeResult> & {
+        error?: string;
+      };
+
+      if (!tokenResponse.ok) {
+        throw new Error(tokenPayload.error || "Nao foi possivel tokenizar o cartao.");
+      }
+
+      setStatusMessage("Enviando pagamento para o Mercado Pago...");
+      const payment = await createPayment({
+        paymentType: "credit_card",
+        paymentMethodId: tokenPayload.paymentMethodId,
+        token: tokenPayload.token,
+        payer: {
+          identification: { type: "CPF", number: digitsOnly(card.cpf) },
+        },
+      });
+
+      setResult(payment);
+      if (payment.payment_id) {
+        window.localStorage.setItem(LAST_PAYMENT_STORAGE_KEY, payment.payment_id);
+      }
+      if (payment.redirect_url) {
+        setStatusMessage("Abrindo a autenticacao do cartao...");
+        window.location.assign(payment.redirect_url);
+        return;
+      }
+      if (payment.status === "approved") {
         window.localStorage.removeItem(LAST_PAYMENT_STORAGE_KEY);
         setStatusMessage("Pagamento aprovado. Entrando na galeria...");
         router.replace("/galeria");
         router.refresh();
-      } else if (payload.status === "pending") {
-        setStatusMessage("Pagamento enviado. Estamos aguardando a confirmacao.");
+        return;
       }
+
+      setStatusMessage("Pagamento enviado. Estamos aguardando a confirmacao.");
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Nao foi possivel processar o cartao.");
+      setStatusMessage("Nao foi possivel processar o cartao.");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
-  if (!publicKey) {
-    return (
-      <p className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
-        Configure NEXT_PUBLIC_MP_PUBLIC_KEY para habilitar o checkout.
-      </p>
-    );
-  }
-
-  if (result?.qr_code) {
-    return (
-      <div>
-        <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
-          <p className="font-semibold text-[var(--st-ink-dark)]">{statusMessage}</p>
-          <p className="mt-1 text-xs">
-            <strong>Compra:</strong> {result.purchase_id || "pendente"} ·{" "}
-            <strong>Pagamento:</strong> {result.payment_id || "pendente"}
-          </p>
-        </div>
-        <PixBlock
-          qrCodeBase64={result.qr_code_base64 || ""}
-          qrCode={result.qr_code}
-        />
-        <p className="mt-4 text-center text-sm leading-6 text-[var(--st-ink-mid)]">
-          Assim que o PIX for aprovado, entre na galeria com esta mesma conta.
-        </p>
-        <p className="mt-2 text-center text-xs text-[var(--st-ink-light)]">
-          Estamos verificando o pagamento automaticamente em segundo plano.
-        </p>
-        <button className="st-btn-primary mt-4 w-full" onClick={() => router.push("/galeria")}>
-          Verificar meu acesso
-        </button>
-      </div>
-    );
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (mode === "pix") {
+      await submitPix();
+    } else {
+      await submitCard();
+    }
   }
 
   return (
     <div>
+      {publicKeyMissing && (
+        <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
+          Configure NEXT_PUBLIC_MP_PUBLIC_KEY para habilitar o checkout.
+        </p>
+      )}
+
       {(error || statusMessage) && (
         <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-[var(--st-creme)] p-4 text-sm text-[var(--st-ink-mid)]">
-          {error ? (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>
-          ) : null}
+          {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
           <p className="mt-2 font-semibold text-[var(--st-ink-dark)]">{statusMessage}</p>
-          {submitting && <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p>}
+          {loading && <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p>}
           {result?.payment_id && (
             <p className="mt-1 text-xs">
               <strong>Pagamento:</strong> {result.payment_id}
@@ -206,32 +257,153 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
           )}
         </div>
       )}
-      <Payment
-        initialization={initialization}
-        customization={{
-          paymentMethods: {
-            creditCard: "all",
-            bankTransfer: "all",
-            debitCard: "all",
-            ticket: "all",
-            mercadoPago: "all",
-            maxInstallments: 1,
-            minInstallments: 1,
-          },
-          visual: {
-            style: { theme: "default" },
-            defaultPaymentOption: { creditCardForm: true },
-          },
-        }}
-        locale="pt-BR"
-        onSubmit={submit}
-        onReady={() => setStatusMessage("Checkout pronto para pagamento.")}
-        onError={() => {
-          setSubmitting(false);
-          setError("Nao foi possivel carregar a forma de pagamento.");
-          setStatusMessage("O checkout encontrou um problema ao carregar.");
-        }}
-      />
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--st-creme)] p-1">
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-3 text-sm font-semibold transition ${
+              mode === "pix" ? "bg-white text-[var(--st-magenta)] shadow-sm" : "text-[var(--st-ink-mid)]"
+            }`}
+            onClick={() => setMode("pix")}
+          >
+            PIX
+          </button>
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-3 text-sm font-semibold transition ${
+              mode === "card" ? "bg-white text-[var(--st-magenta)] shadow-sm" : "text-[var(--st-ink-mid)]"
+            }`}
+            onClick={() => setMode("card")}
+          >
+            Cartão
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
+          <p className="font-semibold text-[var(--st-ink-dark)]">Resumo do acesso</p>
+          <p className="mt-1">Acesso vitalício Stickê</p>
+          <p className="font-mono-st mt-2 text-2xl font-medium text-[var(--st-magenta)]">
+            R$ {STICKE_ACCESS_PRICE.toFixed(2).replace(".", ",")}
+          </p>
+          <p className="mt-1 text-xs">
+            Entrar com <strong>{email}</strong>
+          </p>
+          {name && (
+            <p className="mt-1 text-xs">
+              Nome da conta: <strong>{name}</strong>
+            </p>
+          )}
+        </div>
+
+        {mode === "card" ? (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">
+              Nome no cartão
+              <input
+                className="st-input mt-2"
+                value={card.cardholderName}
+                onChange={(event) => setCard((current) => ({ ...current, cardholderName: event.target.value }))}
+                autoComplete="cc-name"
+                required
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Número do cartão
+              <input
+                className="st-input mt-2"
+                inputMode="numeric"
+                autoComplete="cc-number"
+                value={card.cardNumber}
+                onChange={(event) =>
+                  setCard((current) => ({ ...current, cardNumber: digitsOnly(event.target.value) }))
+                }
+                required
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm font-medium">
+                Mês
+                <input
+                  className="st-input mt-2"
+                  inputMode="numeric"
+                  placeholder="MM"
+                  autoComplete="cc-exp-month"
+                  value={card.expirationMonth}
+                  onChange={(event) =>
+                    setCard((current) => ({ ...current, expirationMonth: digitsOnly(event.target.value) }))
+                  }
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Ano
+                <input
+                  className="st-input mt-2"
+                  inputMode="numeric"
+                  placeholder="YYYY"
+                  autoComplete="cc-exp-year"
+                  value={card.expirationYear}
+                  onChange={(event) =>
+                    setCard((current) => ({ ...current, expirationYear: digitsOnly(event.target.value) }))
+                  }
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                CVV
+                <input
+                  className="st-input mt-2"
+                  inputMode="numeric"
+                  autoComplete="cc-csc"
+                  value={card.securityCode}
+                  onChange={(event) =>
+                    setCard((current) => ({ ...current, securityCode: digitsOnly(event.target.value) }))
+                  }
+                  required
+                />
+              </label>
+            </div>
+            <label className="block text-sm font-medium">
+              CPF
+              <input
+                className="st-input mt-2"
+                inputMode="numeric"
+                value={card.cpf}
+                onChange={(event) => setCard((current) => ({ ...current, cpf: digitsOnly(event.target.value) }))}
+                required
+              />
+            </label>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
+            <p className="font-semibold text-[var(--st-ink-dark)]">PIX instantâneo</p>
+            <p className="mt-1 leading-6">
+              Ao clicar em gerar PIX, vamos criar o pagamento e mostrar o QR Code nesta mesma tela.
+            </p>
+          </div>
+        )}
+
+        <button className="st-btn-primary w-full" disabled={loading}>
+          {loading ? "Processando..." : mode === "pix" ? "Gerar PIX" : "Pagar com cartão"}
+        </button>
+      </form>
+
+      {result?.qr_code && (
+        <div className="mt-6">
+          <PixBlock qrCodeBase64={result.qr_code_base64 || ""} qrCode={result.qr_code} />
+          <p className="mt-4 text-center text-sm leading-6 text-[var(--st-ink-mid)]">
+            Assim que o PIX for aprovado, entre na galeria com esta mesma conta.
+          </p>
+          <p className="mt-2 text-center text-xs text-[var(--st-ink-light)]">
+            Estamos verificando o pagamento automaticamente em segundo plano.
+          </p>
+          <button className="st-btn-primary mt-4 w-full" onClick={() => router.push("/galeria")}>
+            Verificar meu acesso
+          </button>
+        </div>
+      )}
+
       <p className="mt-5 text-center text-xs leading-5 text-[var(--st-ink-light)]">
         Os dados do cartao sao enviados diretamente ao Mercado Pago e nao ficam armazenados na Sticke.
       </p>
