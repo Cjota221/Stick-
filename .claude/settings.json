@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(findstr /v \"KEY\\\\|SECRET\\\\|TOKEN\\\\|PASSWORD\")",
+      "mcp__claude_ai_Supabase__list_tables"
+    ]
+  }
+}
