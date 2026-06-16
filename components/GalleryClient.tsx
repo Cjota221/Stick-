@@ -81,8 +81,39 @@ export default function GalleryClient({ customerName }: { customerName: string }
               image.onerror = reject;
               image.src = URL.createObjectURL(sourceBlob);
             });
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-      setCopyLabel("Copiado!");
+
+      const file = new File([pngBlob], `${sticker.name || "figurinha-sticke"}.png`, {
+        type: "image/png",
+      });
+
+      const clipboard = navigator.clipboard as
+        | {
+            write?: (items: ClipboardItem[]) => Promise<void>;
+          }
+        | undefined;
+
+      if (clipboard?.write && typeof ClipboardItem !== "undefined") {
+        try {
+          await clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+          setCopyLabel("Copiado!");
+          return;
+        } catch {
+          // segue para fallback mobile
+        }
+      }
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: sticker.name || "Figurinha Stickê",
+          text: "Figurinha Stickê",
+          files: [file],
+        });
+        setCopyLabel("Compartilhado!");
+        return;
+      }
+
+      downloadSticker(sticker);
+      setCopyLabel("Baixado!");
     } catch {
       setCopyLabel("Não foi possível");
     }
@@ -101,22 +132,22 @@ export default function GalleryClient({ customerName }: { customerName: string }
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[var(--st-creme-border)] bg-[var(--st-header-bg)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:min-h-24 sm:gap-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:min-h-24 sm:gap-4 sm:px-4 sm:py-3">
           <Link href="/" aria-label="Stickê - Página inicial">
             <img
               src="/brand/logo.png"
               alt="Stickê"
-              className="h-12 w-auto object-contain sm:h-20"
+              className="h-14 w-auto object-contain sm:h-20"
             />
           </Link>
           <div className="text-right">
-            <p className="font-bebas text-base leading-none sm:text-xl">
+            <p className="font-bebas text-[15px] leading-none sm:text-xl">
               Olá, {customerName.split(" ")[0] || "cliente"}
             </p>
             <p className="mt-1 text-[11px] text-[var(--st-ink-mid)] sm:text-xs">
               {categories.length} categorias · {totalStickers} figurinhas
             </p>
-            <div className="mt-1 flex items-center justify-end gap-2">
+            <div className="mt-1 flex items-center justify-end gap-1.5 sm:gap-2">
               <ThemeToggle />
               <form action="/api/logout" method="post">
                 <button className="text-[11px] font-semibold text-[var(--st-magenta)] sm:text-xs">
@@ -128,7 +159,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-4 p-3 sm:p-4 md:grid-cols-[260px_1fr] md:gap-6 md:p-6">
+      <main className="mx-auto grid max-w-6xl gap-3 p-3 sm:p-4 md:grid-cols-[260px_1fr] md:gap-6 md:p-6">
         <aside className="md:sticky md:top-32 md:self-start">
           <input
             className="st-input"
@@ -142,7 +173,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
               <button
                 key={category.id}
                 type="button"
-                className={`shrink-0 rounded-xl border px-3 py-2.5 text-left text-xs transition sm:px-4 sm:py-3 sm:text-sm ${
+                className={`shrink-0 rounded-xl border px-2.5 py-2 text-left text-[11px] transition sm:px-4 sm:py-3 sm:text-sm ${
                   selectedCategoryId === category.id
                     ? "border-[var(--st-magenta)] bg-[var(--st-magenta)] text-white"
                     : "border-[var(--st-creme-border)] bg-[var(--st-surface)] text-[var(--st-ink-mid)]"
@@ -157,14 +188,14 @@ export default function GalleryClient({ customerName }: { customerName: string }
         </aside>
 
         <section>
-          <div className="mb-4 sm:mb-5">
+          <div className="mb-3 sm:mb-5">
             <span className="text-xs font-semibold uppercase tracking-widest text-[var(--st-magenta)]">
               Categoria
             </span>
-            <h1 className="font-bebas mt-1 text-3xl sm:text-4xl">
+            <h1 className="font-bebas mt-1 text-[2rem] leading-[.92] sm:text-4xl">
               {selectedCategory?.name || "Sua galeria"}
             </h1>
-            <p className="max-w-[34rem] text-sm text-[var(--st-ink-mid)]">
+            <p className="max-w-[34rem] text-[13px] leading-6 text-[var(--st-ink-mid)] sm:text-sm">
               Toque em uma figurinha para copiar ou baixar.
             </p>
           </div>
