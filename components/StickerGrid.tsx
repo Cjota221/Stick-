@@ -8,12 +8,12 @@ export default function StickerGrid({
   onSelect: (sticker: Sticker) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4">
       {stickers.map((sticker) => (
         <button
           key={sticker.id}
           type="button"
-          className="st-card sticke-xadrez aspect-square cursor-pointer"
+          className="st-card sticke-xadrez aspect-square cursor-pointer rounded-[10px] bg-[var(--st-surface-2)]"
           onClick={() => onSelect(sticker)}
           aria-label={`Abrir ${sticker.name || "figurinha"}`}
         >
@@ -21,7 +21,7 @@ export default function StickerGrid({
           <img
             src={sticker.image_url}
             alt={sticker.name || "Figurinha"}
-            className="h-full w-full object-contain p-2"
+            className="h-full w-full object-contain p-1 sm:p-2"
           />
         </button>
       ))}

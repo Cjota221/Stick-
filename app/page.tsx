@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/Header";
+import InstallPrompt from "@/components/InstallPrompt";
 import PackImage from "@/components/PackImage";
 import { STICKE_ACCESS_PRICE } from "@/lib/product";
 import { getStoragePath } from "@/lib/storage";
@@ -89,7 +90,7 @@ export default async function Home() {
   return (
     <>
       <Header />
-      <main className="overflow-hidden">
+      <main className="overflow-hidden pb-24 sm:pb-0">
         <section className="landing-hero relative px-5 pb-20 pt-12 md:px-8 md:pb-28 md:pt-20">
           <div className="landing-dot landing-dot-one" />
           <div className="landing-dot landing-dot-two" />
@@ -109,6 +110,14 @@ export default async function Home() {
                   Quero acesso completo <span aria-hidden="true">→</span>
                 </Link>
                 <Link href="#como-funciona" className="landing-text-link">Ver como funciona</Link>
+              </div>
+              <div className="mt-6 flex items-center justify-center gap-2 sm:hidden">
+                <Link href="/cadastro" className="st-btn-primary px-5 py-3 text-sm">
+                  Baixar acesso
+                </Link>
+                <Link href="/login" className="st-btn-ghost px-4 py-3 text-sm">
+                  Já comprei
+                </Link>
               </div>
               <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-[var(--st-ink-mid)] lg:justify-start">
                 <span>✓ PIX ou cartão</span>
@@ -152,7 +161,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <section className="bg-white px-5 py-20 md:px-8 md:py-28">
+        <section className="bg-[var(--st-surface)] px-5 py-20 md:px-8 md:py-28">
           <div className="mx-auto max-w-[1080px]">
             <div className="mx-auto max-w-[760px] text-center">
               <span className="landing-eyebrow">Para empreendedoras reais</span>
@@ -204,7 +213,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="packs" className="relative scroll-mt-8 bg-white px-4 py-20 md:px-8 md:py-28">
+        <section id="packs" className="relative scroll-mt-8 bg-[var(--st-surface)] px-4 py-20 md:px-8 md:py-28">
           <div className="mx-auto max-w-[1080px]">
             <div className="text-center">
               <span className="landing-eyebrow">Tudo incluso no acesso</span>
@@ -318,13 +327,25 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--st-creme-border)] bg-white px-6 py-8">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--st-creme-border)] bg-[var(--st-header-bg)] px-3 py-3 backdrop-blur-md sm:hidden">
+        <div className="mx-auto flex max-w-md gap-2">
+          <Link href="/cadastro" className="st-btn-primary flex-1 px-4 py-3 text-sm">
+            Comprar agora
+          </Link>
+          <Link href="/login" className="st-btn-ghost flex-1 px-4 py-3 text-sm">
+            Já tenho
+          </Link>
+        </div>
+      </div>
+
+      <footer className="border-t border-[var(--st-creme-border)] bg-[var(--st-surface)] px-6 py-8">
         <div className="mx-auto flex max-w-[1080px] flex-col items-center justify-between gap-4 sm:flex-row">
           <img src="/brand/logo.png" alt="Stickê" className="h-10 w-auto" />
           <p className="text-center text-xs text-[var(--st-ink-mid)]">© Stickê · Figurinhas para marcas com personalidade</p>
           <Link href="/login" className="text-xs font-semibold text-[var(--st-magenta)]">Já comprei</Link>
         </div>
       </footer>
+      <InstallPrompt />
     </>
   );
 }

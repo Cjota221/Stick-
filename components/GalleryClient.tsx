@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import BottomSheet from "@/components/BottomSheet";
+import InstallPrompt from "@/components/InstallPrompt";
 import StickerGrid from "@/components/StickerGrid";
 import type { Sticker } from "@/types/sticke";
 
@@ -22,6 +23,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
   const [loading, setLoading] = useState(true);
   const [copyLabel, setCopyLabel] = useState("Copiar");
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     void fetch("/api/galeria", { cache: "no-store" })
@@ -100,22 +102,55 @@ export default function GalleryClient({ customerName }: { customerName: string }
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[var(--st-creme-border)] bg-white">
-        <div className="mx-auto flex min-h-24 max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" aria-label="Stickê - Página inicial">
-            <img src="/brand/logo.png" alt="Stickê" className="h-20 w-auto object-contain" />
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 md:py-3">
+          <Link href="/" aria-label="Stickê - Página inicial" className="shrink-0">
+            <img
+              src="/brand/logo.png"
+              alt="Stickê"
+              className="h-9 w-auto object-contain md:h-14"
+            />
           </Link>
-          <div className="text-right">
-            <p className="font-bebas text-xl">Olá, {customerName.split(" ")[0] || "cliente"}</p>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden text-right sm:block">
+              <p className="font-bebas text-lg leading-none md:text-xl">
+                Olá, {customerName.split(" ")[0] || "cliente"}
+              </p>
+              <p className="text-[11px] text-[var(--st-ink-mid)]">
+                {categories.length} categorias · {totalStickers} figurinhas
+              </p>
+              <form action="/api/logout" method="post">
+                <button className="mt-0.5 text-xs font-semibold text-[var(--st-magenta)]">
+                  Sair da conta
+                </button>
+              </form>
+            </div>
+
+            <button
+              type="button"
+              aria-label="Abrir menu da conta"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--st-creme-border)] text-[var(--st-magenta)] sm:hidden"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {menuOpen && (
+          <div className="border-t border-[var(--st-creme-border)] bg-white px-4 py-3 sm:hidden">
+            <p className="font-bebas text-lg">Olá, {customerName.split(" ")[0] || "cliente"}</p>
             <p className="text-xs text-[var(--st-ink-mid)]">
               {categories.length} categorias · {totalStickers} figurinhas
             </p>
-            <form action="/api/logout" method="post">
-              <button className="mt-1 text-xs font-semibold text-[var(--st-magenta)]">
-                Sair da conta
-              </button>
+            <form action="/api/logout" method="post" className="mt-2">
+              <button className="text-xs font-semibold text-[var(--st-magenta)]">Sair da conta</button>
             </form>
           </div>
-        </div>
+        )}
       </header>
 
       <main className="mx-auto grid max-w-6xl gap-6 p-4 md:grid-cols-[260px_1fr] md:p-6">
@@ -173,6 +208,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
         onDownload={downloadSticker}
         copyLabel={copyLabel}
       />
+      <InstallPrompt />
     </>
   );
 }
