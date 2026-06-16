@@ -1,4 +1,5 @@
-﻿import type { Sticker } from "@/types/sticke";
+import Image from "next/image";
+import type { Sticker } from "@/types/sticke";
 
 export default function StickerGrid({
   stickers,
@@ -13,15 +14,16 @@ export default function StickerGrid({
         <button
           key={sticker.id}
           type="button"
-          className="st-card sticke-xadrez aspect-square min-w-0 cursor-pointer"
+          className="st-card sticke-xadrez relative aspect-square min-w-0 cursor-pointer"
           onClick={() => onSelect(sticker)}
           aria-label={`Abrir ${sticker.name || "figurinha"}`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={sticker.image_url}
             alt={sticker.name || "Figurinha"}
-            className="h-full w-full object-contain p-2"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+            className="object-contain p-2"
           />
         </button>
       ))}
