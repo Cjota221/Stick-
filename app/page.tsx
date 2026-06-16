@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/Header";
+import InstallPrompt from "@/components/InstallPrompt";
 import PackImage from "@/components/PackImage";
 import { STICKE_ACCESS_PRICE } from "@/lib/product";
 import { getStoragePath } from "@/lib/storage";
@@ -344,6 +345,7 @@ export default async function Home() {
           <Link href="/login" className="text-xs font-semibold text-[var(--st-magenta)]">Já comprei</Link>
         </div>
       </footer>
+      <InstallPrompt />
     </>
   );
 }
