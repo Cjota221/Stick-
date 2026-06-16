@@ -16,6 +16,7 @@ const MIME_TYPES = new Map([
   [".jpeg", "image/jpeg"],
   [".webp", "image/webp"],
 ]);
+const UPLOAD_RETRIES = 3;
 
 function printHelp() {
   console.log(`
@@ -97,6 +98,10 @@ async function mapWithConcurrency(items, concurrency, mapper) {
     Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   );
   return results;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function listPackFolders(root) {
@@ -241,18 +246,33 @@ async function processPack(supabase, packPlan, options, packNumber, totalPacks) 
       options.concurrency,
       async (file, index) => {
         const buffer = await readFile(file.filePath);
-        const { error } = await supabase.storage
-          .from(BUCKET)
-          .upload(file.storagePath, buffer, {
-            contentType: file.contentType,
-            cacheControl: "31536000",
-            upsert: false,
-          });
+        let lastError = null;
+        let uploaded = false;
+        for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt += 1) {
+          const { error } = await supabase.storage
+            .from(BUCKET)
+            .upload(file.storagePath, buffer, {
+              contentType: file.contentType,
+              cacheControl: "31536000",
+              upsert: false,
+            });
 
-        if (error && !/already exists|duplicate/i.test(error.message)) {
-          throw new Error(`${file.fileName}: ${error.message}`);
+          if (!error || /already exists|duplicate/i.test(error.message)) {
+            lastError = null;
+            uploaded = true;
+            break;
+          }
+
+          lastError = error;
+          if (attempt < UPLOAD_RETRIES) {
+            await sleep(1000 * attempt);
+          }
         }
-        if (!error) uploadedPaths.push(file.storagePath);
+
+        if (lastError) {
+          throw new Error(`${file.fileName}: ${lastError.message}`);
+        }
+        if (uploaded) uploadedPaths.push(file.storagePath);
         process.stdout.write(`\r  Upload ${index + 1}/${pending.length}`);
       },
     );
