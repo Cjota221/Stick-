@@ -24,12 +24,12 @@ export default function InstallPrompt() {
       event.preventDefault();
       setDeferredEvent(event);
       setPlatform("android");
-      window.setTimeout(() => setVisible(true), 2500);
+      window.setTimeout(() => setVisible(true), 8000);
     }
 
     if (isIOS) {
       setPlatform("ios");
-      window.setTimeout(() => setVisible(true), 2500);
+      window.setTimeout(() => setVisible(true), 8000);
     } else {
       window.addEventListener("beforeinstallprompt", handleBeforeInstall);
     }
@@ -53,30 +53,26 @@ export default function InstallPrompt() {
   if (!visible || !platform) return null;
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border-2 border-[var(--st-ink)] bg-white p-4 shadow-2xl sm:left-auto sm:right-4 sm:w-80">
+    <div className="fixed inset-x-2 bottom-2 z-50 rounded-2xl border border-[var(--st-ink)] bg-[var(--st-surface)] px-3 py-3 shadow-2xl sm:left-auto sm:right-4 sm:bottom-4 sm:w-80 sm:px-4">
       <div className="flex items-start gap-3">
-        <img src="/brand/logo.png" alt="Stickê" className="h-9 w-9 rounded-lg object-contain" />
-        <div className="flex-1">
-          <p className="font-bebas text-base">Instale o Stickê</p>
-          {platform === "android" ? (
-            <p className="mt-0.5 text-xs text-[var(--st-ink-mid)]">
-              Adicione à tela inicial para acessar suas figurinhas mais rápido.
-            </p>
-          ) : (
-            <p className="mt-0.5 text-xs text-[var(--st-ink-mid)]">
-              Toque em compartilhar e depois em "Adicionar à Tela de Início".
-            </p>
+        <img src="/brand/logo.png" alt="Stickê" className="h-8 w-8 rounded-lg object-contain" />
+        <div className="min-w-0 flex-1">
+          <p className="font-bebas text-[15px] leading-none">Instale o Stickê</p>
+          <p className="mt-1 text-[11px] leading-5 text-[var(--st-ink-mid)]">
+            {platform === "android"
+              ? "Adicione à tela inicial para abrir mais rápido."
+              : 'Toque em compartilhar e depois em "Adicionar à Tela de Início".'}
+          </p>
+          {platform === "android" && (
+            <button type="button" onClick={install} className="st-btn-primary mt-2 w-full py-2 text-sm">
+              Instalar
+            </button>
           )}
         </div>
         <button onClick={dismiss} aria-label="Fechar" className="text-[var(--st-ink-mid)]">
           ✕
         </button>
       </div>
-      {platform === "android" && (
-        <button type="button" onClick={install} className="st-btn-primary mt-3 w-full">
-          Instalar agora
-        </button>
-      )}
     </div>
   );
 }
