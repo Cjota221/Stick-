@@ -238,9 +238,9 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
   return (
     <div>
       {error || message ? (
-        <div className="mb-4 rounded-xl border border-[var(--st-creme-border)] bg-[var(--st-creme)] p-4 text-sm text-[var(--st-ink-mid)]">
+        <div className="mb-4 rounded-xl border border-(--st-creme-border) bg-st-creme p-4 text-sm text-(--st-ink-mid)">
           {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-          <p className="mt-2 font-semibold text-[var(--st-ink-dark)]">{message}</p>
+          <p className="mt-2 font-semibold text-(--st-ink-dark)">{message}</p>
           {loading ? <p className="mt-1 text-xs">Aguarde enquanto confirmamos os dados com o Mercado Pago.</p> : null}
           {result?.payment_id ? (
             <p className="mt-1 text-xs">
@@ -260,7 +260,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
           <button
             type="button"
             className={`rounded-lg px-4 py-3 text-sm font-semibold transition ${
-              mode === "pix" ? "bg-white text-[var(--st-magenta)] shadow-sm" : "text-[var(--st-ink-mid)]"
+              mode === "pix" ? "bg-white text-st-magenta shadow-sm" : "text-(--st-ink-mid)"
             }`}
             onClick={() => setMode("pix")}
           >
@@ -269,7 +269,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
           <button
             type="button"
             className={`rounded-lg px-4 py-3 text-sm font-semibold transition ${
-              mode === "card" ? "bg-white text-[var(--st-magenta)] shadow-sm" : "text-[var(--st-ink-mid)]"
+              mode === "card" ? "bg-white text-st-magenta shadow-sm" : "text-(--st-ink-mid)"
             }`}
             onClick={() => setMode("card")}
           >
@@ -277,10 +277,10 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
           </button>
         </div>
 
-        <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
-          <p className="font-semibold text-[var(--st-ink-dark)]">Resumo do acesso</p>
+        <div className="rounded-xl border border-(--st-creme-border) bg-white p-4 text-sm text-(--st-ink-mid)">
+          <p className="font-semibold text-(--st-ink-dark)">Resumo do acesso</p>
           <p className="mt-1">Acesso vitalicio Sticke</p>
-          <p className="font-mono-st mt-2 text-2xl font-medium text-[var(--st-magenta)]">
+          <p className="font-mono-st mt-2 text-2xl font-medium text-st-magenta">
             R$ {STICKE_ACCESS_PRICE.toFixed(2).replace(".", ",")}
           </p>
           <p className="mt-1 text-xs">
@@ -373,8 +373,8 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
             </label>
           </div>
         ) : (
-          <div className="rounded-xl border border-[var(--st-creme-border)] bg-white p-4 text-sm text-[var(--st-ink-mid)]">
-            <p className="font-semibold text-[var(--st-ink-dark)]">PIX instantaneo</p>
+          <div className="rounded-xl border border-(--st-creme-border) bg-white p-4 text-sm text-(--st-ink-mid)">
+            <p className="font-semibold text-(--st-ink-dark)">PIX instantaneo</p>
             <p className="mt-1 leading-6">
               Ao clicar em gerar PIX, criamos o pagamento e mostramos o QR Code nesta mesma tela.
             </p>
@@ -389,10 +389,10 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
       {result?.qr_code ? (
         <div className="mt-6">
           <PixBlock qrCodeBase64={result.qr_code_base64 || ""} qrCode={result.qr_code} />
-          <p className="mt-4 text-center text-sm leading-6 text-[var(--st-ink-mid)]">
+          <p className="mt-4 text-center text-sm leading-6 text-(--st-ink-mid)">
             Assim que o PIX for aprovado, entre na galeria com esta mesma conta.
           </p>
-          <p className="mt-2 text-center text-xs text-[var(--st-ink-light)]">
+          <p className="mt-2 text-center text-xs text-(--st-ink-light)">
             Estamos verificando o pagamento automaticamente em segundo plano.
           </p>
           <button className="st-btn-primary mt-4 w-full" onClick={() => router.push("/galeria")}>
@@ -401,7 +401,7 @@ export default function CheckoutPayment({ email, name }: { email: string; name: 
         </div>
       ) : null}
 
-      <p className="mt-5 text-center text-xs leading-5 text-[var(--st-ink-light)]">
+      <p className="mt-5 text-center text-xs leading-5 text-(--st-ink-light)">
         Os dados do cartao sao enviados diretamente ao Mercado Pago e nao ficam armazenados na Sticke.
       </p>
     </div>

@@ -101,7 +101,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-[var(--st-creme-border)] bg-white">
+      <header className="sticky top-0 z-30 border-b border-(--st-creme-border) bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 md:py-3">
           <Link href="/" aria-label="Stickê - Página inicial" className="shrink-0">
             <img
@@ -116,11 +116,11 @@ export default function GalleryClient({ customerName }: { customerName: string }
               <p className="font-bebas text-lg leading-none md:text-xl">
                 Olá, {customerName.split(" ")[0] || "cliente"}
               </p>
-              <p className="text-[11px] text-[var(--st-ink-mid)]">
+              <p className="text-[11px] text-(--st-ink-mid)">
                 {categories.length} categorias · {totalStickers} figurinhas
               </p>
               <form action="/api/logout" method="post">
-                <button className="mt-0.5 text-xs font-semibold text-[var(--st-magenta)]">
+                <button className="mt-0.5 text-xs font-semibold text-st-magenta">
                   Sair da conta
                 </button>
               </form>
@@ -130,7 +130,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
               type="button"
               aria-label="Abrir menu da conta"
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--st-creme-border)] text-[var(--st-magenta)] sm:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-(--st-creme-border) text-st-magenta sm:hidden"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="8" r="4" />
@@ -141,13 +141,13 @@ export default function GalleryClient({ customerName }: { customerName: string }
         </div>
 
         {menuOpen && (
-          <div className="border-t border-[var(--st-creme-border)] bg-white px-4 py-3 sm:hidden">
+          <div className="border-t border-(--st-creme-border) bg-white px-4 py-3 sm:hidden">
             <p className="font-bebas text-lg">Olá, {customerName.split(" ")[0] || "cliente"}</p>
-            <p className="text-xs text-[var(--st-ink-mid)]">
+            <p className="text-xs text-(--st-ink-mid)">
               {categories.length} categorias · {totalStickers} figurinhas
             </p>
             <form action="/api/logout" method="post" className="mt-2">
-              <button className="text-xs font-semibold text-[var(--st-magenta)]">Sair da conta</button>
+              <button className="text-xs font-semibold text-st-magenta">Sair da conta</button>
             </form>
           </div>
         )}
@@ -170,7 +170,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
                 className={`shrink-0 rounded-xl border px-4 py-3 text-left text-sm transition ${
                   selectedCategoryId === category.id
                     ? "border-[var(--st-magenta)] bg-[var(--st-magenta)] text-white"
-                    : "border-[var(--st-creme-border)] bg-white text-[var(--st-ink-mid)]"
+                    : "border-(--st-creme-border) bg-white text-(--st-ink-mid)"
                 }`}
                 onClick={() => setSelectedCategoryId(category.id)}
               >
@@ -183,11 +183,11 @@ export default function GalleryClient({ customerName }: { customerName: string }
 
         <section>
           <div className="mb-5">
-            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--st-magenta)]">
+            <span className="text-xs font-semibold uppercase tracking-widest text-st-magenta">
               Categoria
             </span>
             <h1 className="font-bebas mt-1 text-4xl">{selectedCategory?.name || "Sua galeria"}</h1>
-            <p className="text-sm text-[var(--st-ink-mid)]">
+            <p className="text-sm text-(--st-ink-mid)">
               Toque em uma figurinha para copiar ou baixar.
             </p>
           </div>
