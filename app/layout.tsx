@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Bebas_Neue, DM_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -32,13 +32,6 @@ export const metadata: Metadata = {
   icons: { icon: "/brand/icon-192.png", apple: "/brand/icon-192.png" },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
@@ -46,6 +39,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       className={`${bebasNeue.variable} ${dmSans.variable} ${dmMono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+      </head>
       <body>
         <script
           dangerouslySetInnerHTML={{
