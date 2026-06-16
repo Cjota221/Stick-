@@ -234,7 +234,7 @@ export default function GalleryClient({ customerName }: { customerName: string }
           </div>
         </aside>
 
-        <section>
+        <section className="min-w-0">
           <div className="mb-4 md:mb-5">
             <span className="text-xs font-semibold uppercase tracking-widest text-[var(--st-magenta)]">
               Categoria

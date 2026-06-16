@@ -13,7 +13,7 @@ export default function StickerGrid({
         <button
           key={sticker.id}
           type="button"
-          className="st-card sticke-xadrez aspect-square cursor-pointer"
+          className="st-card sticke-xadrez aspect-square min-w-0 cursor-pointer"
           onClick={() => onSelect(sticker)}
           aria-label={`Abrir ${sticker.name || "figurinha"}`}
         >
